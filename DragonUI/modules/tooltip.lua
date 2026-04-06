@@ -60,6 +60,7 @@ local HEALTHBAR_HEIGHT = 6
 local HEALTHBAR_PADDING = -5  -- space between text and bar
 local HEALTHBAR_BOTTOM_PAD = 8  -- space between bar and tooltip bottom edge
 local HEALTHBAR_TOTAL = HEALTHBAR_HEIGHT + HEALTHBAR_PADDING + HEALTHBAR_BOTTOM_PAD
+local HEALTHBAR_SINGLE_LINE_EXTRA = 4 -- extra gap when tooltip only has a name line
 local TOOLTIP_WIDGET_ANCHOR = "BOTTOMRIGHT"
 local TOOLTIP_WIDGET_POSX = -90
 local TOOLTIP_WIDGET_POSY = 100
@@ -108,8 +109,12 @@ local function AdjustTooltipForHealthBar(tooltip)
         self:SetScript("OnUpdate", orig)
         self.__DragonUI_adjustPending = false
         -- Now extend height — Blizzard's layout is done at this point
+        local extra = 0
+        if (self:NumLines() or 0) <= 1 then
+            extra = HEALTHBAR_SINGLE_LINE_EXTRA
+        end
         local h = self:GetHeight()
-        self:SetHeight(h + HEALTHBAR_TOTAL)
+        self:SetHeight(h + HEALTHBAR_TOTAL + extra)
     end)
 end
 
