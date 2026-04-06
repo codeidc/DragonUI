@@ -407,4 +407,6 @@ L["Bank already sorted!"] = true
 L["Reputation: "] = true
 L["Error in SafeCall:"] = true
 
+L["Double-Click to Copy"] = true
 L["Copy Text"] = true
+
