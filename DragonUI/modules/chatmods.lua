@@ -824,7 +824,7 @@ local function ChatCopyHint(frame)
         GameTooltip:AddLine(CHAT_OPTIONS_LABEL, 1, 1, 1)
         GameTooltip:AddLine(NEWBIE_TOOLTIP_CHATOPTIONS, nil, nil, nil, 1)
     end
-    GameTooltip:AddLine((SHOW_NEWBIE_TIPS == "1" and "\n" or "") .. "Double-Click to Copy")
+    GameTooltip:AddLine((SHOW_NEWBIE_TIPS == "1" and "\n" or "") .. (addon.L["Double-Click to Copy"] or "Double-Click to Copy"))
     GameTooltip:Show()
 end
 
