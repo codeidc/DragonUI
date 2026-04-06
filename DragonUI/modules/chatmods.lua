@@ -9,10 +9,13 @@
     -- ============================================================================
 
     local _G = _G
-    local format, gsub = string.format, string.gsub
-    local pairs, ipairs, select, tostring = pairs, ipairs, select, tostring
+    local format, gsub, find = string.format, string.gsub, string.find
+    local abs = math.abs
+    local ipairs, select, tostring = ipairs, select, tostring
     local tinsert, table_concat = table.insert, table.concat
     local NUM_CHAT_WINDOWS = NUM_CHAT_WINDOWS or 10
+    local CHAT_FRAME_LIMIT = 10
+    local CHAT_EDITBOX_PARTS = {"Left", "Mid", "Right"}
 
     -- Module state tracking
     local ChatModsModule = {
@@ -46,59 +49,84 @@
     -- BUTTON HIDING & CHAT FRAME TWEAKS
     -- ============================================================================
 
+    local ALPHA_EPSILON = 0.01
+    local HOVER_UPDATE_THROTTLE = 0.1
+    local HOVER_IDLE_TICKS_TO_SLEEP = 3
+
+    local function IsAlphaChanged(current, target)
+        return abs((current or 0) - (target or 0)) > ALPHA_EPSILON
+    end
+
+    local function SetMouseIfChanged(frame, enabled)
+        if not frame or not frame.EnableMouse then return end
+        if frame.IsMouseEnabled and frame:IsMouseEnabled() == enabled then
+            return
+        end
+        frame:EnableMouse(enabled)
+    end
+
     local function SetButtonVisible(button, visible)
         if not button then return end
 
-        button:Show()
-        button:SetAlpha(visible and 1 or 0)
-        button:EnableMouse(visible)
+        if not button:IsShown() then
+            button:Show()
+        end
+
+        local alpha = visible and 1 or 0
+        if IsAlphaChanged(button:GetAlpha(), alpha) then
+            button:SetAlpha(alpha)
+        end
+        SetMouseIfChanged(button, visible)
     end
 
     local function SetButtonAlpha(button, alpha)
         if not button then return end
 
-        button:Show()
-        button:SetAlpha(alpha)
-        button:EnableMouse(alpha >= 0.95)
+        if not button:IsShown() then
+            button:Show()
+        end
+        if IsAlphaChanged(button:GetAlpha(), alpha) then
+            button:SetAlpha(alpha)
+        end
+        SetMouseIfChanged(button, alpha >= 0.95)
     end
 
-    local function GetChatHoverButtons(i)
-        local buttons = {
-            _G["ChatFrame" .. i .. "ButtonFrameUpButton"],
-            _G["ChatFrame" .. i .. "ButtonFrameDownButton"],
-            _G["ChatFrame" .. i .. "ButtonFrameBottomButton"]
-        }
-
-        if i == 1 then
-            tinsert(buttons, _G.ChatFrameMenuButton)
-            tinsert(buttons, _G.FriendsMicroButton)
+    local function SetChatHoverButtonsVisible(i, visible, entry)
+        local bf = (entry and entry.bf) or _G["ChatFrame" .. i .. "ButtonFrame"]
+        if bf then
+            if not bf:IsShown() then
+                bf:Show()
+            end
+            local alpha = visible and 1 or 0
+            if IsAlphaChanged(bf:GetAlpha(), alpha) then
+                bf:SetAlpha(alpha)
+            end
+            SetMouseIfChanged(bf, visible)
         end
 
-        return buttons
-    end
+        -- BF-child buttons: parent frame alpha handles fade, just toggle mouse
+        local upBtn = (entry and entry.upBtn) or _G["ChatFrame" .. i .. "ButtonFrameUpButton"]
+        local downBtn = (entry and entry.downBtn) or _G["ChatFrame" .. i .. "ButtonFrameDownButton"]
+        local bottomBtn = (entry and entry.bottomBtn) or _G["ChatFrame" .. i .. "ButtonFrameBottomButton"]
+        if upBtn then
+            if not upBtn:IsShown() then upBtn:Show() end
+            SetMouseIfChanged(upBtn, visible)
+        end
+        if downBtn then
+            if not downBtn:IsShown() then downBtn:Show() end
+            SetMouseIfChanged(downBtn, visible)
+        end
+        if bottomBtn then
+            if not bottomBtn:IsShown() then bottomBtn:Show() end
+            SetMouseIfChanged(bottomBtn, visible)
+        end
 
-    local function SetChatHoverButtonsVisible(i, visible)
-    local bf = _G["ChatFrame" .. i .. "ButtonFrame"]
-    if bf then
-        bf:Show()
-        bf:SetAlpha(visible and 1 or 0)
-        bf:EnableMouse(visible)
+        -- Non-child buttons need independent control
+        if i == 1 then
+            SetButtonVisible((entry and entry.menuBtn) or _G.ChatFrameMenuButton, visible)
+            SetButtonVisible((entry and entry.friendsBtn) or _G.FriendsMicroButton, visible)
+        end
     end
-
-    -- BF-child buttons: parent frame alpha handles fade, just toggle mouse
-    local upBtn = _G["ChatFrame" .. i .. "ButtonFrameUpButton"]
-    local downBtn = _G["ChatFrame" .. i .. "ButtonFrameDownButton"]
-    local bottomBtn = _G["ChatFrame" .. i .. "ButtonFrameBottomButton"]
-    if upBtn then upBtn:Show(); upBtn:EnableMouse(visible) end
-    if downBtn then downBtn:Show(); downBtn:EnableMouse(visible) end
-    if bottomBtn then bottomBtn:Show(); bottomBtn:EnableMouse(visible) end
-
-    -- Non-child buttons need independent control
-    if i == 1 then
-        SetButtonVisible(_G.ChatFrameMenuButton, visible)
-        SetButtonVisible(_G.FriendsMicroButton, visible)
-    end
-end
 
 local function StripButtonFrameBackground(buttonFrame)
     if not buttonFrame then return end
@@ -120,113 +148,31 @@ local function StripButtonFrameBackground(buttonFrame)
     buttonFrame.DragonUIBackgroundStripped = true
 end
 
-local function SetChatHoverButtonsAlpha(i, alpha)
-        local bf = _G["ChatFrame" .. i .. "ButtonFrame"]
+local function SetChatHoverButtonsAlpha(i, alpha, entry)
+        local bf = (entry and entry.bf) or _G["ChatFrame" .. i .. "ButtonFrame"]
         if bf then
-            bf:Show()
-            bf:SetAlpha(alpha)
-            bf:EnableMouse(alpha >= 0.95)
+            if not bf:IsShown() then
+                bf:Show()
+            end
+            if IsAlphaChanged(bf:GetAlpha(), alpha) then
+                bf:SetAlpha(alpha)
+            end
+            SetMouseIfChanged(bf, alpha >= 0.95)
         end
 
     -- BF-child buttons: parent frame alpha handles fade, just toggle mouse
-    local upBtn = _G["ChatFrame" .. i .. "ButtonFrameUpButton"]
-    local downBtn = _G["ChatFrame" .. i .. "ButtonFrameDownButton"]
-    local bottomBtn = _G["ChatFrame" .. i .. "ButtonFrameBottomButton"]
-    if upBtn then upBtn:EnableMouse(alpha >= 0.95) end
-    if downBtn then downBtn:EnableMouse(alpha >= 0.95) end
-    if bottomBtn then bottomBtn:EnableMouse(alpha >= 0.95) end
+    local upBtn = (entry and entry.upBtn) or _G["ChatFrame" .. i .. "ButtonFrameUpButton"]
+    local downBtn = (entry and entry.downBtn) or _G["ChatFrame" .. i .. "ButtonFrameDownButton"]
+    local bottomBtn = (entry and entry.bottomBtn) or _G["ChatFrame" .. i .. "ButtonFrameBottomButton"]
+    SetMouseIfChanged(upBtn, alpha >= 0.95)
+    SetMouseIfChanged(downBtn, alpha >= 0.95)
+    SetMouseIfChanged(bottomBtn, alpha >= 0.95)
 
     -- Non-child buttons need independent alpha control
     if i == 1 then
-        SetButtonAlpha(_G.ChatFrameMenuButton, alpha)
-        SetButtonAlpha(_G.FriendsMicroButton, alpha)
+        SetButtonAlpha((entry and entry.menuBtn) or _G.ChatFrameMenuButton, alpha)
+        SetButtonAlpha((entry and entry.friendsBtn) or _G.FriendsMicroButton, alpha)
     end
-end
-
-local function MoveCopyTextButtonToTop()
-    local list = _G.DropDownList1
-    if not list then return end
-
-    local numButtons = list.numButtons or 0
-    if numButtons < 2 then return end
-
-    local copyIndex
-    for idx = 1, numButtons do
-        local button = _G["DropDownList1Button" .. idx]
-        if button and button.value == "DRAGONUI_COPY_TEXT" then
-            copyIndex = idx
-            break
-        end
-    end
-
-    if not copyIndex or copyIndex == 1 then
-        return
-    end
-
-    local copyButton = _G["DropDownList1Button" .. copyIndex]
-    if not copyButton then return end
-
-    local copyData = {
-        text = copyButton:GetText(),
-        value = copyButton.value,
-        func = copyButton.func,
-        arg1 = copyButton.arg1,
-        arg2 = copyButton.arg2,
-        checked = copyButton.checked,
-        notCheckable = copyButton.notCheckable,
-        tooltipTitle = copyButton.tooltipTitle,
-        tooltipText = copyButton.tooltipText,
-        disabled = copyButton.disabled,
-        keepShownOnClick = copyButton.keepShownOnClick,
-        hasArrow = copyButton.hasArrow,
-        menuList = copyButton.menuList,
-        owner = copyButton.owner
-    }
-
-    for idx = copyIndex, 2, -1 do
-        local button = _G["DropDownList1Button" .. idx]
-        local prev = _G["DropDownList1Button" .. (idx - 1)]
-        if button and prev then
-            button:SetText(prev:GetText())
-            button.value = prev.value
-            button.func = prev.func
-            button.arg1 = prev.arg1
-            button.arg2 = prev.arg2
-            button.checked = prev.checked
-            button.notCheckable = prev.notCheckable
-            button.tooltipTitle = prev.tooltipTitle
-            button.tooltipText = prev.tooltipText
-            button.disabled = prev.disabled
-            button.keepShownOnClick = prev.keepShownOnClick
-            button.hasArrow = prev.hasArrow
-            button.menuList = prev.menuList
-            button.owner = prev.owner
-        end
-    end
-
-    local first = _G.DropDownList1Button1
-    if first then
-        first:SetText(copyData.text)
-        first.value = copyData.value
-        first.func = copyData.func
-        first.arg1 = copyData.arg1
-        first.arg2 = copyData.arg2
-        first.checked = copyData.checked
-        first.notCheckable = copyData.notCheckable
-        first.tooltipTitle = copyData.tooltipTitle
-        first.tooltipText = copyData.tooltipText
-        first.disabled = copyData.disabled
-        first.keepShownOnClick = copyData.keepShownOnClick
-        first.hasArrow = copyData.hasArrow
-        first.menuList = copyData.menuList
-        first.owner = copyData.owner
-    end
-end
-
-local function IsTabHoverActive(tab)
-    if not tab then return false end
-    if tab:IsMouseOver() then return true end
-    return tab:GetAlpha() > ((tab.noMouseAlpha or 0) + 0.02)
 end
 
     local function GetTabIdleAlpha(config)
@@ -241,6 +187,9 @@ end
         return (config and config.editboxIdleAlpha ~= nil) and config.editboxIdleAlpha or 0
     end
 
+    local StartChatButtonsHoverUpdater
+    local StopChatButtonsHoverUpdater
+
     local function RefreshChatFadeState()
         if not ChatModsModule.applied then return end
 
@@ -249,7 +198,7 @@ end
         local styleIdleAlpha = GetStyleIdleAlpha(cfg)
         local ebIdleAlpha = GetEditboxIdleAlpha(cfg)
 
-        for i = 1, 10 do
+        for i = 1, CHAT_FRAME_LIMIT do
             local cf = _G["ChatFrame" .. i]
             local tab = _G["ChatFrame" .. i .. "Tab"]
             local bf = _G["ChatFrame" .. i .. "ButtonFrame"]
@@ -263,24 +212,72 @@ end
             local tabAlpha = hovered and 1 or tabIdleAlpha
             if tab then
                 tab.noMouseAlpha = tabIdleAlpha
-                tab:SetAlpha(tabAlpha)
+                if IsAlphaChanged(tab:GetAlpha(), tabAlpha) then
+                    tab:SetAlpha(tabAlpha)
+                end
             end
 
             SetChatHoverButtonsAlpha(i, tabAlpha)
 
             if cf and cf._dragonUIBgFrame and cf._dragonUIBgFrame:IsShown() then
-                cf._dragonUIBgFrame:SetAlpha(math.max(styleIdleAlpha, tabAlpha))
+                local bgAlpha = styleIdleAlpha
+                if IsAlphaChanged(cf._dragonUIBgFrame:GetAlpha(), bgAlpha) then
+                    cf._dragonUIBgFrame:SetAlpha(bgAlpha)
+                end
             end
 
             if eb then
                 if eb:GetBackdrop() then
-                    eb:SetAlpha(eb:HasFocus() and 1 or ebIdleAlpha)
+                    local ebAlpha = eb:HasFocus() and 1 or ebIdleAlpha
+                    if IsAlphaChanged(eb:GetAlpha(), ebAlpha) then
+                        eb:SetAlpha(ebAlpha)
+                    end
                 else
-                    eb:SetAlpha(1)
+                    if IsAlphaChanged(eb:GetAlpha(), 1) then
+                        eb:SetAlpha(1)
+                    end
                 end
             end
         end
+
+        StartChatButtonsHoverUpdater(true)
     end
+
+local function OnChatHoverInteraction()
+    if not ChatModsModule.applied then return end
+    StartChatButtonsHoverUpdater(true)
+end
+
+local function AttachChatHoverRefreshHooks(frame)
+    if not frame or frame.DragonUIHoverRefreshHooked then return end
+    frame:HookScript("OnEnter", OnChatHoverInteraction)
+    frame:HookScript("OnLeave", OnChatHoverInteraction)
+    frame.DragonUIHoverRefreshHooked = true
+end
+
+StopChatButtonsHoverUpdater = function()
+    local updater = ChatModsModule.hooks.chatButtonsHoverUpdater
+    if updater and updater:GetScript("OnUpdate") then
+        updater:SetScript("OnUpdate", nil)
+    end
+    ChatModsModule.frames.chatHoverForceUpdate = nil
+    ChatModsModule.frames.chatHoverIdleTicks = 0
+end
+
+StartChatButtonsHoverUpdater = function(forceUpdate)
+    local updater = ChatModsModule.hooks.chatButtonsHoverUpdater
+    local onUpdate = ChatModsModule.frames.chatHoverOnUpdate
+    if not updater or not onUpdate then return end
+
+    if forceUpdate then
+        ChatModsModule.frames.chatHoverForceUpdate = true
+    end
+    ChatModsModule.frames.chatHoverIdleTicks = 0
+
+    if not updater:GetScript("OnUpdate") then
+        updater:SetScript("OnUpdate", onUpdate)
+    end
+end
 
 local function EnsureChatButtonsHoverUpdater()
     if ChatModsModule.hooks.chatButtonsHoverUpdater then
@@ -289,43 +286,98 @@ local function EnsureChatButtonsHoverUpdater()
 
     local updater = CreateFrame("Frame")
     local _throttle = 0
-    updater:SetScript("OnUpdate", function(_, elapsed)
+
+    ChatModsModule.frames.chatHoverOnUpdate = function(_, elapsed)
         _throttle = _throttle + elapsed
-        if _throttle < 0.1 then return end
+        if _throttle < HOVER_UPDATE_THROTTLE then return end
         _throttle = 0
 
-        if not ChatModsModule.applied then return end
+        if not ChatModsModule.applied then
+            StopChatButtonsHoverUpdater()
+            return
+        end
 
         local entries = ChatModsModule.frames.chatHoverEntries
-        if not entries then return end
+        if not entries or #entries == 0 then
+            StopChatButtonsHoverUpdater()
+            return
+        end
 
         -- Cache config once per tick, outside the loop
         local cfg = GetModuleConfig()
         local idleAlpha = GetStyleIdleAlpha(cfg)
         local ebIdleAlpha = GetEditboxIdleAlpha(cfg)
+        local forceUpdate = ChatModsModule.frames.chatHoverForceUpdate
+        ChatModsModule.frames.chatHoverForceUpdate = nil
+
+        local hasActiveTransition = false
+        local wroteVisualState = false
 
         for _, entry in ipairs(entries) do
-            -- StripButtonFrameBackground is NOT called here — it's handled by the
+            -- StripButtonFrameBackground is NOT called here - it's handled by the
             -- OnShow hook set in ApplyChatFrameTweaks. Calling it on a throttle
             -- causes a visible flicker when Blizzard restores textures between ticks.
 
             -- Mirror the tab's current alpha (Blizzard fades it via noMouseAlpha).
             local tabAlpha = entry.tab and entry.tab:GetAlpha() or 0
-            SetChatHoverButtonsAlpha(entry.index, tabAlpha)
+            if forceUpdate or entry.lastTabAlpha == nil or IsAlphaChanged(entry.lastTabAlpha, tabAlpha) then
+                SetChatHoverButtonsAlpha(entry.index, tabAlpha, entry)
+                entry.lastTabAlpha = tabAlpha
+                wroteVisualState = true
+            end
 
             -- Sync style background frame with tab fade.
-            local cf = _G["ChatFrame" .. entry.index]
+            local cf = entry.cf
             if cf and cf._dragonUIBgFrame and cf._dragonUIBgFrame:IsShown() then
-                cf._dragonUIBgFrame:SetAlpha(math.max(idleAlpha, tabAlpha))
+                local bgAlpha = idleAlpha
+                if forceUpdate or entry.lastBgAlpha == nil or IsAlphaChanged(entry.lastBgAlpha, bgAlpha) then
+                    cf._dragonUIBgFrame:SetAlpha(bgAlpha)
+                    entry.lastBgAlpha = bgAlpha
+                    wroteVisualState = true
+                end
+            else
+                entry.lastBgAlpha = nil
             end
 
             -- Sync editbox style backdrop: independent from hover.
-            local eb = _G["ChatFrame" .. entry.index .. "EditBox"]
+            local eb = entry.eb
             if eb and eb:GetBackdrop() then
-                eb:SetAlpha(eb:HasFocus() and 1 or ebIdleAlpha)
+                local ebAlpha = eb:HasFocus() and 1 or ebIdleAlpha
+                if forceUpdate or entry.lastEditboxAlpha == nil or IsAlphaChanged(entry.lastEditboxAlpha, ebAlpha) then
+                    eb:SetAlpha(ebAlpha)
+                    entry.lastEditboxAlpha = ebAlpha
+                    wroteVisualState = true
+                end
+            else
+                entry.lastEditboxAlpha = nil
+            end
+
+            local hovered = (entry.tab and entry.tab:IsMouseOver())
+                or (entry.cf and entry.cf:IsMouseOver())
+                or (entry.bf and entry.bf:IsMouseOver())
+                or (entry.eb and (entry.eb:IsMouseOver() or entry.eb:HasFocus()))
+
+            local targetTabAlpha = hovered and 1 or ((entry.tab and entry.tab.noMouseAlpha) or 0)
+            if hovered or IsAlphaChanged(tabAlpha, targetTabAlpha) then
+                hasActiveTransition = true
             end
         end
-    end)
+
+        if hasActiveTransition then
+            ChatModsModule.frames.chatHoverIdleTicks = 0
+            return
+        end
+
+        if wroteVisualState then
+            ChatModsModule.frames.chatHoverIdleTicks = 1
+            return
+        end
+
+        ChatModsModule.frames.chatHoverIdleTicks = (ChatModsModule.frames.chatHoverIdleTicks or 0) + 1
+        if ChatModsModule.frames.chatHoverIdleTicks >= HOVER_IDLE_TICKS_TO_SLEEP then
+            StopChatButtonsHoverUpdater()
+        end
+    end
 
     ChatModsModule.hooks.chatButtonsHoverUpdater = updater
 end
@@ -334,16 +386,17 @@ local function ApplyChatFrameTweaks()
 
     ChatModsModule.frames.chatHoverEntries = ChatModsModule.frames.chatHoverEntries or {}
     wipe(ChatModsModule.frames.chatHoverEntries)
+    local tabIdleAlpha = GetTabIdleAlpha(GetModuleConfig())
 
-    for i = 1, 10 do
+    for i = 1, CHAT_FRAME_LIMIT do
         local cf = _G[format("ChatFrame%d", i)]
         if cf then
             -- Fix tab fading
             local tab = _G["ChatFrame" .. i .. "Tab"]
+            local eb = _G["ChatFrame" .. i .. "EditBox"]
             if tab then
-                local idleAlpha = GetTabIdleAlpha(GetModuleConfig())
                 tab:SetAlpha(1)
-                tab.noMouseAlpha = idleAlpha
+                tab.noMouseAlpha = tabIdleAlpha
             end
             cf:SetFading(true)
 
@@ -356,8 +409,7 @@ local function ApplyChatFrameTweaks()
             cf:SetClampRectInsets(0, 0, 0, 0)
 
             -- Transparent editbox
-            local ebParts = {"Left", "Mid", "Right"}
-            for _, part in ipairs(ebParts) do
+            for _, part in ipairs(CHAT_EDITBOX_PARTS) do
                 local tex = _G["ChatFrame" .. i .. "EditBox" .. part]
                 if tex then tex:SetTexture(0, 0, 0, 0) end
                 local focus = _G["ChatFrame" .. i .. "EditBoxFocus" .. part]
@@ -368,30 +420,51 @@ local function ApplyChatFrameTweaks()
             end
 
             local bf = _G["ChatFrame" .. i .. "ButtonFrame"]
-            local tab = _G["ChatFrame" .. i .. "Tab"]
             if bf then
                 StripButtonFrameBackground(bf)
                 if not bf.DragonUIBackgroundHooked then
                     bf:HookScript("OnShow", function(self)
                         StripButtonFrameBackground(self)
+                        OnChatHoverInteraction()
                     end)
                     bf.DragonUIBackgroundHooked = true
                 end
-                SetChatHoverButtonsVisible(i, false)
-
-                tinsert(ChatModsModule.frames.chatHoverEntries, {
+                local entry = {
                     index = i,
+                    cf = cf,
                     tab = tab,
                     bf = bf,
-                    buttons = GetChatHoverButtons(i),
-                    alpha = 0,
-                    targetAlpha = 0
-                })
+                    eb = eb,
+                    upBtn = _G["ChatFrame" .. i .. "ButtonFrameUpButton"],
+                    downBtn = _G["ChatFrame" .. i .. "ButtonFrameDownButton"],
+                    bottomBtn = _G["ChatFrame" .. i .. "ButtonFrameBottomButton"],
+                    menuBtn = (i == 1) and _G.ChatFrameMenuButton or nil,
+                    friendsBtn = (i == 1) and _G.FriendsMicroButton or nil,
+                    lastTabAlpha = nil,
+                    lastBgAlpha = nil,
+                    lastEditboxAlpha = nil,
+                }
+                SetChatHoverButtonsVisible(i, false, entry)
+
+                tinsert(ChatModsModule.frames.chatHoverEntries, entry)
+            end
+
+            AttachChatHoverRefreshHooks(cf)
+            AttachChatHoverRefreshHooks(tab)
+            AttachChatHoverRefreshHooks(bf)
+            AttachChatHoverRefreshHooks(eb)
+            if eb and not eb.DragonUIFocusRefreshHooked then
+                eb:HookScript("OnEditFocusGained", OnChatHoverInteraction)
+                eb:HookScript("OnEditFocusLost", OnChatHoverInteraction)
+                eb.DragonUIFocusRefreshHooked = true
             end
         end
     end
 
     EnsureChatButtonsHoverUpdater()
+    if ChatModsModule.applied then
+        StartChatButtonsHoverUpdater(true)
+    end
 
     -- Keep toast frame on screen
     if BNToastFrame then
@@ -438,7 +511,7 @@ local function ApplyChatStyle()
     local style = (config and config.chatStyle) or "none"
     local def = CHAT_STYLES[style]
 
-    for i = 1, 10 do
+    for i = 1, CHAT_FRAME_LIMIT do
         local cf = _G["ChatFrame" .. i]
         if cf then
             -- Always clear cf's native Blizzard backdrop so our bgFrame
@@ -494,23 +567,23 @@ local function ApplyEditboxStyle()
     local config = GetModuleConfig()
     local style = (config and config.editboxStyle) or "none"
     local def = CHAT_STYLES[style]
-        local ebIdleAlpha = GetEditboxIdleAlpha(config)
+    local ebIdleAlpha = GetEditboxIdleAlpha(config)
 
-    for i = 1, 10 do
+    for i = 1, CHAT_FRAME_LIMIT do
         local eb = _G["ChatFrame" .. i .. "EditBox"]
         if eb then
             -- Focus textures (Left/Mid/Right) render a solid black input indicator.
             -- When our custom style is active they overlap it, so we hide them;
-                -- when no custom style is set we keep them hidden to avoid a stale dark line.
-                local focusAlpha = 0
-            for _, part in ipairs({"Left", "Mid", "Right"}) do
+            -- when no custom style is set we keep them hidden to avoid a stale dark line.
+            local focusAlpha = 0
+            for _, part in ipairs(CHAT_EDITBOX_PARTS) do
                 local focus = _G["ChatFrame" .. i .. "EditBoxFocus" .. part]
                 if focus then focus:SetTexture(0, 0, 0, focusAlpha) end
             end
 
             if not def then
                 eb:SetBackdrop(nil)
-                    eb:SetAlpha(1)
+                eb:SetAlpha(1)
             else
                 eb:SetBackdrop(BD_EDITBOX)
                 local r, g, b, a = unpack(def.bg)
@@ -521,12 +594,12 @@ local function ApplyEditboxStyle()
                 else
                     eb:SetBackdropBorderColor(0, 0, 0, 0)
                 end
-                    eb:SetAlpha(eb:HasFocus() and 1 or ebIdleAlpha)
+                eb:SetAlpha(eb:HasFocus() and 1 or ebIdleAlpha)
             end
         end
     end
 
-        RefreshChatFadeState()
+    RefreshChatFadeState()
 end
 
 -- ============================================================================
@@ -542,7 +615,7 @@ local function ApplyEditBoxPosition()
     local config = GetModuleConfig()
     local pos = config and config.editbox or "bottom"
 
-    for i = 1, 10 do
+    for i = 1, CHAT_FRAME_LIMIT do
         local cf = _G[format("ChatFrame%d", i)]
         local eb = _G["ChatFrame" .. i .. "EditBox"]
         if cf and eb then
@@ -607,14 +680,14 @@ end
 -- ============================================================================
 
 local function OnChatFrameOpenChat()
-    for i = 1, 10 do
+    for i = 1, CHAT_FRAME_LIMIT do
         local box = _G["ChatFrame" .. i .. "EditBox"]
         if box then box:EnableMouse(true) end
     end
 end
 
 local function OnChatEditSendText()
-    for i = 1, 10 do
+    for i = 1, CHAT_FRAME_LIMIT do
         local box = _G["ChatFrame" .. i .. "EditBox"]
         if box then box:EnableMouse(false) end
     end
@@ -679,15 +752,28 @@ local URL_TLDs = {
     "[Ee][Uu]", "[Tt][Vv]", "[Nn][Ll]", "[Hh][Uu]", "[Oo][Rr][Gg]"
 }
 
+local URL_TLD_PATTERNS = {}
+for i = 1, #URL_TLDs do
+    URL_TLD_PATTERNS[i] = "(%S-%." .. URL_TLDs[i] .. "/?%S*)"
+end
+
+local URL_IP_PATTERN = "(%d+%.%d+%.%d+%.%d+:?%d*/?%S*)"
+local URL_HYPERLINK_TEMPLATE = "|cffffffff|Hurl:%1|h[%1]|h|r"
+
 local function URLFilter(self, event, msg, ...)
-    for i = 1, #URL_TLDs do
-        local newmsg, found = gsub(msg, "(%S-%." .. URL_TLDs[i] .. "/?%S*)", "|cffffffff|Hurl:%1|h[%1]|h|r")
+    if not msg then return end
+    if not find(msg, ".", 1, true) then
+        return
+    end
+
+    for i = 1, #URL_TLD_PATTERNS do
+        local newmsg, found = gsub(msg, URL_TLD_PATTERNS[i], URL_HYPERLINK_TEMPLATE)
         if found > 0 then
             return false, newmsg, ...
         end
     end
     -- IP address pattern
-    local newmsg, found = gsub(msg, "(%d+%.%d+%.%d+%.%d+:?%d*/?%S*)", "|cffffffff|Hurl:%1|h[%1]|h|r")
+    local newmsg, found = gsub(msg, URL_IP_PATTERN, URL_HYPERLINK_TEMPLATE)
     if found > 0 then
         return false, newmsg, ...
     end
@@ -803,7 +889,8 @@ local function ChatCopyFunc(frame)
 
     local lines = {}
     local ct = 1
-    for i = select("#", cf:GetRegions()), 1, -1 do
+    local regionCount = select("#", cf:GetRegions())
+    for i = regionCount, 1, -1 do
         local region = select(i, cf:GetRegions())
         if region:GetObjectType() == "FontString" then
             lines[ct] = tostring(region:GetText())
@@ -854,11 +941,20 @@ local function ApplyChatCopy()
         ChatModsModule.hooks.chatTabMenuCopyText = true
     end
 
-    for i = 1, 10 do
+    for i = 1, CHAT_FRAME_LIMIT do
         local tab = _G[format("ChatFrame%dTab", i)]
         if tab then
-            tab:SetScript("OnDoubleClick", ChatCopyFunc)
-            tab:SetScript("OnEnter", ChatCopyHint)
+            if not tab.DragonUIChatCopyDoubleClickHooked then
+                tab:HookScript("OnDoubleClick", ChatCopyFunc)
+                tab.DragonUIChatCopyDoubleClickHooked = true
+            end
+            if not tab.DragonUIChatCopyHintHooked then
+                tab:HookScript("OnEnter", ChatCopyHint)
+                tab.DragonUIChatCopyHintHooked = true
+            end
+
+            -- Keep hover wake-up robust even if other addons rewire tab scripts.
+            AttachChatHoverRefreshHooks(tab)
         end
     end
 end
@@ -928,11 +1024,20 @@ local function ApplyChatModsSystem()
         ChatModsModule.hooks.chatSend = true
     end
 
+    if not ChatModsModule.hooks.chatFadeWake then
+        hooksecurefunc("FCF_FadeInChatFrame", OnChatHoverInteraction)
+        hooksecurefunc("FCF_FadeOutChatFrame", OnChatHoverInteraction)
+        ChatModsModule.hooks.chatFadeWake = true
+    end
+
     ChatModsModule.applied = true
+    StartChatButtonsHoverUpdater(true)
 end
 
 local function RestoreChatModsSystem()
     if not ChatModsModule.applied then return end
+
+    StopChatButtonsHoverUpdater()
 
     -- Remove filters on disable so re-enable does not stack duplicate handlers.
     if ChatModsModule.hooks.afkDndFilter and ChatFrame_RemoveMessageEventFilter then
@@ -942,7 +1047,7 @@ local function RestoreChatModsSystem()
     end
 
     -- Restore chat frame and editbox backdrops
-    for i = 1, 10 do
+    for i = 1, CHAT_FRAME_LIMIT do
         local cf = _G["ChatFrame" .. i]
         if cf then
             if cf._dragonUIBgFrame then
@@ -1011,12 +1116,12 @@ addon.ApplyChatStyle = function()
     end
 end
 
-    addon.ApplyEditBoxPosition = function()
-        if ChatModsModule.applied then
-            ApplyEditBoxPosition()
-            RefreshChatFadeState()
-        end
+addon.ApplyEditBoxPosition = function()
+    if ChatModsModule.applied then
+        ApplyEditBoxPosition()
+        RefreshChatFadeState()
     end
+end
 
 addon.ApplyEditboxStyle = function()
     if ChatModsModule.applied then
@@ -1024,11 +1129,11 @@ addon.ApplyEditboxStyle = function()
     end
 end
 
-    addon.RefreshChatFadeState = function()
-        if ChatModsModule.applied then
-            RefreshChatFadeState()
-        end
+addon.RefreshChatFadeState = function()
+    if ChatModsModule.applied then
+        RefreshChatFadeState()
     end
+end
 
 -- ============================================================================
 -- INITIALIZATION
