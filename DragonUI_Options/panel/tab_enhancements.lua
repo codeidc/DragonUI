@@ -61,7 +61,7 @@ local function BuildEnhancementsTab(scroll)
             -- Rebuild tab so the intensity dropdown updates its disabled state
             Panel:SelectTab("enhancements")
         end,
-        requiresReload = false,
+        requiresReload = true,
     })
 
     C:AddDropdown(darkSection, {
