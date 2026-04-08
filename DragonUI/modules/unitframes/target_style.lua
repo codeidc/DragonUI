@@ -49,6 +49,73 @@ function UF.TargetStyle.Create(opts)
     local BOSS_COORDS = UF.BOSS_COORDS.targetStyle
     local POWER_MAP   = UF.POWER_MAP
 
+    -- Name background color variants sourced from UIUnitFrame2x_PTR.blp.
+    -- Coords extracted from the local PTR atlas (1024x512) and mapped by color.
+    local NAME_BG_PTR_TEXTURE = "Interface\\AddOns\\DragonUI\\Textures\\UIUnitFrame2x_PTR"
+    local NAME_BG_WIDTH = 135
+    local NAME_BG_HEIGHT = 16
+    local NAME_BG_OFFSET_X = -1
+    local NAME_BG_OFFSET_Y = -1
+    local NAME_BG_TEX_COORDS = {
+        blue = {
+            266 / 1024, 534 / 1024,
+            135 / 512, 166 / 512,
+        },
+        green = {
+            536 / 1024, 804 / 1024,
+            135 / 512, 166 / 512,
+        },
+        orange = {
+            266 / 1024, 534 / 1024,
+            168 / 512, 199 / 512,
+        },
+        red = {
+            536 / 1024, 804 / 1024,
+            168 / 512, 199 / 512,
+        },
+        yellow = {
+            266 / 1024, 534 / 1024,
+            201 / 512, 232 / 512,
+        },
+    }
+
+    local NAME_BG_COLOR_PALETTE = {
+        blue = {0.0, 0.44, 1.0},
+        green = {0.0, 1.0, 0.0},
+        orange = {1.0, 0.5, 0.0},
+        red = {1.0, 0.0, 0.0},
+        yellow = {1.0, 1.0, 0.0},
+    }
+
+    local function ApplyNameBackgroundLayout()
+        if not NameBackground or not HealthBar then return end
+
+        NameBackground:ClearAllPoints()
+        NameBackground:SetPoint(
+            "BOTTOMLEFT", HealthBar, "TOPLEFT", NAME_BG_OFFSET_X, NAME_BG_OFFSET_Y)
+        NameBackground:SetSize(NAME_BG_WIDTH, NAME_BG_HEIGHT)
+    end
+
+    local function ResolveNameBackgroundColorKey(r, g, b)
+        if not r or not g or not b then
+            return "yellow"
+        end
+
+        local bestKey, bestDist = "yellow", 10
+        for key, p in pairs(NAME_BG_COLOR_PALETTE) do
+            local dr = r - p[1]
+            local dg = g - p[2]
+            local db = b - p[3]
+            local dist = dr * dr + dg * dg + db * db
+            if dist < bestDist then
+                bestDist = dist
+                bestKey = key
+            end
+        end
+
+        return bestKey
+    end
+
     -- ----------------------------------------------------------------
     -- Frame elements & throttle cache
     -- ----------------------------------------------------------------
@@ -312,8 +379,7 @@ function UF.TargetStyle.Create(opts)
             LevelText:SetPoint("BOTTOMRIGHT", HealthBar, "TOPLEFT", 18, 3)
         end
         if NameBackground then
-            NameBackground:ClearAllPoints()
-            NameBackground:SetPoint("BOTTOMLEFT", HealthBar, "TOPLEFT", -1, -5)
+            ApplyNameBackgroundLayout()
         end
     end
 
@@ -575,21 +641,45 @@ function UF.TargetStyle.Create(opts)
         end
 
         local r, g, b
+        local isTapDenied = false
         -- Tap-denied check (target only)
         if opts.hasTapDenied
            and UnitIsTapped(unitToken)
            and not UnitIsTappedByPlayer(unitToken) then
-            r, g, b = 0.5, 0.5, 0.5
+            r, g, b = 1, 1, 1
+            isTapDenied = true
         else
             r, g, b = UnitSelectionColor(unitToken)
         end
 
-        if opts.nameVertexAlpha then
-            NameBackground:SetVertexColor(
-                r or 0.5, g or 0.5, b or 0.5, opts.nameVertexAlpha)
+        local colorKey = isTapDenied and "green" or ResolveNameBackgroundColorKey(r, g, b)
+        local coords = NAME_BG_TEX_COORDS[colorKey] or NAME_BG_TEX_COORDS.yellow
+
+        NameBackground:SetTexture(NAME_BG_PTR_TEXTURE)
+        NameBackground:SetTexCoord(unpack(coords))
+        if isTapDenied then
+            NameBackground:SetBlendMode("BLEND")
         else
-            NameBackground:SetVertexColor(r, g, b)
+            NameBackground:SetBlendMode("ADD")
         end
+        if NameBackground.SetDesaturated then
+            NameBackground:SetDesaturated(isTapDenied)
+        end
+
+        if isTapDenied then
+            if opts.nameVertexAlpha then
+                NameBackground:SetVertexColor(0.08, 0.08, 0.08, opts.nameVertexAlpha)
+            else
+                NameBackground:SetVertexColor(0.08, 0.08, 0.08, 1)
+            end
+        else
+            if opts.nameVertexAlpha then
+                NameBackground:SetVertexColor(1, 1, 1, opts.nameVertexAlpha)
+            else
+                NameBackground:SetVertexColor(1, 1, 1, 1)
+            end
+        end
+
         NameBackground:Show()
     end
 
@@ -713,13 +803,15 @@ function UF.TargetStyle.Create(opts)
 
         -- ---- Configure name background ----
         if NameBackground then
-            NameBackground:ClearAllPoints()
-            NameBackground:SetPoint(
-                "BOTTOMLEFT", HealthBar, "TOPLEFT", -1, -5)
-            NameBackground:SetSize(135, 18)
-            NameBackground:SetTexture(TEXTURES.NAME_BACKGROUND)
-            NameBackground:SetDrawLayer("BORDER", 1)
+            ApplyNameBackgroundLayout()
+            NameBackground:SetTexture(NAME_BG_PTR_TEXTURE)
+            NameBackground:SetTexCoord(unpack(NAME_BG_TEX_COORDS.green))
             NameBackground:SetBlendMode("ADD")
+            if NameBackground.SetDesaturated then
+                NameBackground:SetDesaturated(false)
+            end
+            NameBackground:SetVertexColor(1, 1, 1, 1)
+            NameBackground:SetDrawLayer("BORDER", 1)
             if opts.nameFrameAlpha then
                 NameBackground:SetAlpha(opts.nameFrameAlpha)
             end
@@ -837,11 +929,18 @@ function UF.TargetStyle.Create(opts)
                 -- Name background with player color
                 if NameBackground then
                     local r, g, b = UnitSelectionColor("player")
+                    local colorKey = ResolveNameBackgroundColorKey(r, g, b)
+                    local coords = NAME_BG_TEX_COORDS[colorKey] or NAME_BG_TEX_COORDS.yellow
+                    NameBackground:SetTexture(NAME_BG_PTR_TEXTURE)
+                    NameBackground:SetTexCoord(unpack(coords))
+                    NameBackground:SetBlendMode("ADD")
+                    if NameBackground.SetDesaturated then
+                        NameBackground:SetDesaturated(false)
+                    end
                     if opts.nameVertexAlpha then
-                        NameBackground:SetVertexColor(
-                            r, g, b, opts.nameVertexAlpha)
+                        NameBackground:SetVertexColor(1, 1, 1, opts.nameVertexAlpha)
                     else
-                        NameBackground:SetVertexColor(r, g, b)
+                        NameBackground:SetVertexColor(1, 1, 1, 1)
                     end
                     NameBackground:Show()
                 end

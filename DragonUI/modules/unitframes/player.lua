@@ -54,6 +54,25 @@ local PlayerLevelText = _G.PlayerLevelText
 -- Texture paths from shared core (single source of truth)
 local TEXTURES = UF.TEXTURES.player
 
+-- Keep a fixed on-screen border size so higher-resolution replacements
+-- do not render larger than the original DragonUI frame.
+local PLAYER_BORDER_WIDTH = 256
+local PLAYER_BORDER_HEIGHT = 128
+
+-- Dedicated player corner embellishment (normal state) from standalone texture.
+local PLAYER_CORNER_TEXTURE = "Interface\\AddOns\\DragonUI\\Textures\\ui-hud-unitframe-player-portraiton-cornerembellishment-2x"
+local PLAYER_CORNER_TEX_COORDS = {
+    0, 44 / 64,
+    0, 44 / 64
+}
+
+-- Combat icon uses the white crossed-swords glyph from atlas crop.
+local PLAYER_COMBAT_ICON_TEXTURE = "Interface\\AddOns\\DragonUI\\Textures\\uiunitframe2x_ptr_icons_crop"
+local PLAYER_COMBAT_ICON_TEX_COORDS = {
+    2 / 256, 32 / 256,   -- x: 2..31 (exclusive right edge at 32)
+    63 / 256, 90 / 256   -- y: 63..89 (exclusive bottom edge at 90)
+}
+
 -- Coordinates for elite/rare glows (inverted target frame)
 local ELITE_GLOW_COORDINATES = {
     -- Using the correct texture: 'Interface\\Addons\\DragonUI\\Textures\\UI\\UnitFrame'
@@ -440,14 +459,12 @@ local function RemoveBlizzardFrames(isVehicle)
             PlayerFrameVehicleTexture:Show()
         else
             PlayerFrameVehicleTexture:SetAlpha(0)
-            PlayerFrameVehicleTexture:Hide()
         end
     end
 end
 
 -- ============================================================================
 -- ELITE GLOW SYSTEM - Switch system
--- ============================================================================
 
 -- Check if elite mode is active based on dragon decoration
 local function IsEliteModeActive()
@@ -1384,6 +1401,7 @@ local function UpdatePlayerDragonDecoration()
             dragonFrame.PlayerFrameBorder:Show()
             dragonFrame.PlayerFrameBorder:SetTexture(decorBorder)
             dragonFrame.PlayerFrameBorder:SetTexCoord(1, 0, 0, 1) -- Flip horizontal for player
+            dragonFrame.PlayerFrameBorder:SetSize(PLAYER_BORDER_WIDTH, PLAYER_BORDER_HEIGHT)
 
             dragonFrame.PlayerFrameBorder:ClearAllPoints()
             dragonFrame.PlayerFrameBorder:SetPoint('LEFT', PlayerFrameHealthBar, 'LEFT', borderX, borderY)
@@ -1436,6 +1454,7 @@ local function UpdatePlayerDragonDecoration()
             dragonFrame.PlayerFrameBorder:Hide()
             dragonFrame.BorderOverlayTexture:SetTexture(decorBorder)
             dragonFrame.BorderOverlayTexture:SetTexCoord(1, 0, 0, 1)
+            dragonFrame.BorderOverlayTexture:SetSize(PLAYER_BORDER_WIDTH, PLAYER_BORDER_HEIGHT)
             dragonFrame.BorderOverlayTexture:ClearAllPoints()
             dragonFrame.BorderOverlayTexture:SetPoint('LEFT', PlayerFrameHealthBar, 'LEFT', borderX, borderY)
             dragonFrame.BorderOverlayTexture:Show()
@@ -1591,6 +1610,7 @@ local function UpdatePlayerDragonDecoration()
                 dragonFrame.PlayerFrameBorder:Show()
                 dragonFrame.PlayerFrameBorder:SetTexture(borderTexture)
                 dragonFrame.PlayerFrameBorder:SetTexCoord(0, 1, 0, 1)
+                dragonFrame.PlayerFrameBorder:SetSize(PLAYER_BORDER_WIDTH, PLAYER_BORDER_HEIGHT)
 
                 dragonFrame.PlayerFrameBorder:ClearAllPoints()
                 dragonFrame.PlayerFrameBorder:SetPoint('LEFT', PlayerFrameHealthBar, 'LEFT', -67, -28.5 + HP_OFFSET)
@@ -1806,6 +1826,7 @@ local function CreatePlayerFrameTextures()
         local border = PlayerFrameHealthBar:CreateTexture('DragonUIPlayerFrameBorder')
         border:SetDrawLayer('OVERLAY', 5)
         border:SetTexture(GetBorderTexture())
+        border:SetSize(PLAYER_BORDER_WIDTH, PLAYER_BORDER_HEIGHT)
         border:SetPoint('LEFT', PlayerFrameHealthBar, 'LEFT', -67, -28.5)
         dragonFrame.PlayerFrameBorder = border
     end
@@ -1814,9 +1835,9 @@ local function CreatePlayerFrameTextures()
     if not dragonFrame.PlayerFrameDeco then
         local deco = PlayerFrame:CreateTexture('DragonUIPlayerFrameDeco')
         deco:SetDrawLayer('OVERLAY', 5)
-        deco:SetTexture(TEXTURES.BASE)
-        deco:SetTexCoord(0.953125, 0.9755859375, 0.259765625, 0.3046875)
-        deco:SetPoint('CENTER', PlayerPortrait, 'CENTER', 16, -16.5)
+        deco:SetTexture(PLAYER_CORNER_TEXTURE)
+        deco:SetTexCoord(unpack(PLAYER_CORNER_TEX_COORDS))
+        deco:SetPoint('CENTER', PlayerPortrait, 'CENTER', 15.5, -16)
         deco:SetSize(23, 23)
         dragonFrame.PlayerFrameDeco = deco
     end
@@ -2185,16 +2206,18 @@ local function SetCombatFlashVisible(visible)
             combatPulseTimer = 0 -- Reset pulse timer
 
             --  CHANGE DECORATION TO COMBAT ICON (crossed swords)
-            dragonFrame.PlayerFrameDeco:SetTexCoord(0.9775390625, 0.9931640625, 0.259765625, 0.291015625)
+            dragonFrame.PlayerFrameDeco:SetTexture(PLAYER_COMBAT_ICON_TEXTURE)
+            dragonFrame.PlayerFrameDeco:SetTexCoord(unpack(PLAYER_COMBAT_ICON_TEX_COORDS))
             --  ADJUST SIZE FOR COMBAT ICON
-            dragonFrame.PlayerFrameDeco:SetSize(16, 16)
-            dragonFrame.PlayerFrameDeco:SetPoint('CENTER', PlayerPortrait, 'CENTER', 18, -20)
+            dragonFrame.PlayerFrameDeco:SetSize(16, 14)
+            dragonFrame.PlayerFrameDeco:SetPoint('CENTER', PlayerPortrait, 'CENTER', 18.5, -20)
         else
             --  RESTORE NORMAL DECORATION
-            dragonFrame.PlayerFrameDeco:SetTexCoord(0.953125, 0.9755859375, 0.259765625, 0.3046875)
+            dragonFrame.PlayerFrameDeco:SetTexture(PLAYER_CORNER_TEXTURE)
+            dragonFrame.PlayerFrameDeco:SetTexCoord(unpack(PLAYER_CORNER_TEX_COORDS))
             --  RESTORE ORIGINAL SIZE
             dragonFrame.PlayerFrameDeco:SetSize(23, 23)
-            dragonFrame.PlayerFrameDeco:SetPoint('CENTER', PlayerPortrait, 'CENTER', 16, -16.5)
+            dragonFrame.PlayerFrameDeco:SetPoint('CENTER', PlayerPortrait, 'CENTER', 15.5, -16)
         end
     end
 
