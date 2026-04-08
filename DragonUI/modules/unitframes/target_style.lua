@@ -53,9 +53,9 @@ function UF.TargetStyle.Create(opts)
     -- Coords extracted from the local PTR atlas (1024x512) and mapped by color.
     local NAME_BG_PTR_TEXTURE = "Interface\\AddOns\\DragonUI\\Textures\\UIUnitFrame2x_PTR"
     local NAME_BG_WIDTH = 135
-    local NAME_BG_HEIGHT = 16
-    local NAME_BG_OFFSET_X = -1
-    local NAME_BG_OFFSET_Y = -1
+    local NAME_BG_HEIGHT = 14
+    local NAME_BG_OFFSET_X = -0.5
+    local NAME_BG_OFFSET_Y = 0.2
     local NAME_BG_TEX_COORDS = {
         blue = {
             266 / 1024, 534 / 1024,

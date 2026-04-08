@@ -47,6 +47,33 @@ local INTENSITY_PRESETS = {
     [3] = 0.15, -- Dark: very dark
 }
 
+-- Code-only tuning for Target/Focus name background darkening.
+-- 0.00 = no darkening, 1.00 = full unit frame dark tint.
+local TARGET_FOCUS_NAME_BG_DARKEN_FACTOR = 0.5
+
+local function IsTargetFocusNameBackgroundTexture(region)
+    if not region then return false end
+    return region == _G["TargetFrameNameBackground"]
+        or region == _G["FocusFrameNameBackground"]
+end
+
+local function GetTargetFocusNameBackgroundTint(ufTint)
+    local factor = TARGET_FOCUS_NAME_BG_DARKEN_FACTOR or 0
+    if factor <= 0 then
+        return { 1, 1, 1 }
+    end
+    if factor >= 1 then
+        return { ufTint[1], ufTint[2], ufTint[3] }
+    end
+
+    -- Blend from neutral white to UF tint using the configured factor.
+    return {
+        1 - ((1 - ufTint[1]) * factor),
+        1 - ((1 - ufTint[2]) * factor),
+        1 - ((1 - ufTint[3]) * factor),
+    }
+end
+
 local function GetTintValues()
     local config = GetModuleConfig()
     if config and config.use_custom_color and config.custom_color then
@@ -325,33 +352,38 @@ end
 -- never the portrait or health/mana bar fill.
 -- -----------------------------------------------------------------------
 local function DarkenUnitFrameBorders(tint)
+    local nameBgTint = GetTargetFocusNameBackgroundTint(tint)
+
     -- Helper: darken only textures whose path contains BORDER or BACKGROUND keywords
     local function DarkenFrameBorderTextures(frame)
         if not frame or not frame.GetRegions then return end
         local regions = { frame:GetRegions() }
         for _, region in ipairs(regions) do
             if region and region.GetObjectType and region:GetObjectType() == "Texture" then
-                local texPath = region.GetTexture and region:GetTexture() or ""
-                if type(texPath) == "string" then
-                    texPath = texPath:upper()
+                if IsTargetFocusNameBackgroundTexture(region) then
+                    DarkenTexture(region, nameBgTint)
                 else
-                    texPath = ""
-                end
+                    local texPath = region.GetTexture and region:GetTexture() or ""
+                    if type(texPath) == "string" then
+                        texPath = texPath:upper()
+                    else
+                        texPath = ""
+                    end
 
-                -- Skip the NameBackground — it shows faction/selection color,
-                -- not chrome. Darkening it makes it invisible.
-                if texPath:find("NAMEBACKGROUND") then
-                    -- do nothing: this is visual content, not frame border
-                else
-                    local isBorder = texPath:find("BORDER") or texPath:find("BACKGROUND")
-                                     or texPath:find("INCOMBAT") or texPath:find("THREAT")
-                                     or texPath:find("UIUNITFRAME")
+                    -- Skip other NameBackground textures (non target/focus).
+                    if texPath:find("NAMEBACKGROUND") then
+                        -- do nothing
+                    else
+                        local isBorder = texPath:find("BORDER") or texPath:find("BACKGROUND")
+                                         or texPath:find("INCOMBAT") or texPath:find("THREAT")
+                                         or texPath:find("UIUNITFRAME")
 
-                    local layer = region:GetDrawLayer()
-                    local isOverlay = (layer == "OVERLAY")
+                        local layer = region:GetDrawLayer()
+                        local isOverlay = (layer == "OVERLAY")
 
-                    if isBorder or isOverlay then
-                        DarkenTexture(region, tint)
+                        if isBorder or isOverlay then
+                            DarkenTexture(region, tint)
+                        end
                     end
                 end
             end
@@ -871,6 +903,30 @@ local function GuardSetVertexColor(self)
     self.__DragonUI_SettingDark = nil
 end
 
+local function GuardNameBackgroundVertexColor(self)
+    if not DarkModeModule.applied then return end
+    if self.__DragonUI_SettingDark then return end
+    if not IsTargetFocusNameBackgroundTexture(self) then return end
+    if (TARGET_FOCUS_NAME_BG_DARKEN_FACTOR or 0) <= 0 then return end
+
+    local ufTint = GetUFTintValues()
+    local nameTint = GetTargetFocusNameBackgroundTint(ufTint)
+    self.__DragonUI_SettingDark = true
+    self:SetVertexColor(nameTint[1], nameTint[2], nameTint[3])
+    self.__DragonUI_SettingDark = nil
+end
+
+local function InstallNameBackgroundVertexGuards()
+    local names = { "TargetFrameNameBackground", "FocusFrameNameBackground" }
+    for _, name in ipairs(names) do
+        local tex = _G[name]
+        if tex and not tex.__DragonUI_NameBGVCGuard then
+            hooksecurefunc(tex, "SetVertexColor", GuardNameBackgroundVertexColor)
+            tex.__DragonUI_NameBGVCGuard = true
+        end
+    end
+end
+
 local function InstallVertexColorGuards()
     if DarkModeModule.hooks.vertexGuardsInstalled then return end
 
@@ -920,6 +976,9 @@ local function InstallVertexColorGuards()
         end
     end
 
+    -- Target/Focus NameBackground texture guards (selection/faction banner).
+    InstallNameBackgroundVertexGuards()
+
     DarkModeModule.hooks.vertexGuardsInstalled = true
 end
 
@@ -945,6 +1004,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- Setup hooks ONCE (before ApplyDarkMode so they catch future updates)
         SetupBarRefreshHooks()
         InstallVertexColorGuards()
+        InstallNameBackgroundVertexGuards()
 
         -- Hook player frame refresh so dark mode re-applies after decoration/fat bar changes
         if not DarkModeModule.hooks.playerFrameHooked then
@@ -992,10 +1052,27 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 local now = GetTime()
                 if now - lastUFRefresh < 0.15 then return end
                 lastUFRefresh = now
-                addon:After(0.05, function()
+
+                -- Ensure guards exist even if a frame initialized late.
+                InstallNameBackgroundVertexGuards()
+
+                -- Apply immediately to avoid one-frame flashes when target/focus
+                -- backgrounds are refreshed to their default colors.
+                local ufTint = GetUFTintValues()
+                DarkenUnitFrameBorders(ufTint)
+
+                -- Keep a short safety pass for delayed Blizzard refreshes.
+                addon:After(0.03, function()
                     if not DarkModeModule.applied then return end
-                    local ufTint = GetUFTintValues()
-                    DarkenUnitFrameBorders(ufTint)
+                    local delayedTint = GetUFTintValues()
+                    DarkenUnitFrameBorders(delayedTint)
+                end)
+
+                -- Extra pass for first target/focus creation right after reload.
+                addon:After(0.10, function()
+                    if not DarkModeModule.applied then return end
+                    local delayedTint = GetUFTintValues()
+                    DarkenUnitFrameBorders(delayedTint)
                 end)
             end
 
@@ -1023,7 +1100,12 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             DarkModeModule.hooks.barEventsRegistered = true
         end
 
+        -- Apply immediately so the first target/focus after /reload is already dark.
+        ApplyDarkMode()
+
+        -- Keep delayed pass for late-created textures/modules.
         addon:After(0.3, function()
+            if not IsModuleEnabled() then return end
             ApplyDarkMode()
         end)
 
@@ -1086,10 +1168,22 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- changes, but Blizzard's TargetFrame_Update may reset some
         -- Blizzard texture vertex colors that we also darken.
         if not DarkModeModule.applied then return end
-        addon:After(0.05, function()
+
+        InstallNameBackgroundVertexGuards()
+
+        local ufTint = GetUFTintValues()
+        DarkenUnitFrameBorders(ufTint)
+
+        addon:After(0.03, function()
             if not DarkModeModule.applied then return end
-            local ufTint = GetUFTintValues()
-            DarkenUnitFrameBorders(ufTint)
+            local delayedTint = GetUFTintValues()
+            DarkenUnitFrameBorders(delayedTint)
+        end)
+
+        addon:After(0.10, function()
+            if not DarkModeModule.applied then return end
+            local delayedTint = GetUFTintValues()
+            DarkenUnitFrameBorders(delayedTint)
         end)
     end
 end)
