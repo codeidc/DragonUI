@@ -749,8 +749,10 @@ local function ReDarkenButton(button)
         DarkenTexture(normal, tint)
         -- Re-install vertex color guard if texture was replaced (e.g. SetNormalTexture call)
         if not normal.__DragonUI_VCGuard then
-            hooksecurefunc(normal, "SetVertexColor", GuardSetVertexColor)
-            normal.__DragonUI_VCGuard = true
+            local ok = pcall(hooksecurefunc, normal, "SetVertexColor", GuardSetVertexColor)
+            if ok then
+                normal.__DragonUI_VCGuard = true
+            end
         end
     end
     -- Re-darken background slot texture (created by DragonUI buttons module)
