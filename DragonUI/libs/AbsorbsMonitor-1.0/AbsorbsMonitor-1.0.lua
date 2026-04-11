@@ -1661,7 +1661,12 @@ end
 local function priest_PowerWordShield_Create(sourceGUID, sourceName, destGUID, destName, spellId, destEffects)	
 	local _, sp, quality1, sourceScaling, quality2 = Unit_StatsAndScaling(sourceGUID, 0.1, priest_defaultScaling, 0.1);
 	
-	return floor((sourceScaling[spellId][1] + sp * sourceScaling[spellId][2]) * ZONE_MODIFIER), math.min(quality1, quality2);
+	-- Fall back to default scaling when the source unit's scaling table
+	-- doesn't contain this priest spell (e.g. mage Spellsteal transfers PWS).
+	local spellScaling = sourceScaling[spellId] or priest_defaultScaling[spellId];
+	if not spellScaling then return nil; end
+	
+	return floor((spellScaling[1] + sp * spellScaling[2]) * ZONE_MODIFIER), math.min(quality1, quality2);
 end
 
 local function priest_PowerWordBarrier_Create(sourceGUID, sourceName, destGUID, destName, spellId, destEffects)
