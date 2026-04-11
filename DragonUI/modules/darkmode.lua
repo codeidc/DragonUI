@@ -747,6 +747,11 @@ local function ReDarkenButton(button)
                    or (button.GetNormalTexture and button:GetNormalTexture())
     if normal and normal.GetObjectType and normal:GetObjectType() == "Texture" then
         DarkenTexture(normal, tint)
+        -- Re-install vertex color guard if texture was replaced (e.g. SetNormalTexture call)
+        if not normal.__DragonUI_VCGuard then
+            hooksecurefunc(normal, "SetVertexColor", GuardSetVertexColor)
+            normal.__DragonUI_VCGuard = true
+        end
     end
     -- Re-darken background slot texture (created by DragonUI buttons module)
     if button.background and button.background.GetObjectType and button.background:GetObjectType() == "Texture" then
@@ -881,6 +886,18 @@ local function SetupBarRefreshHooks()
         hooksecurefunc("ActionButton_HideGrid", function(button)
             if not DarkModeModule.applied then return end
             ReDarkenButton(button)
+        end)
+    end
+
+    -- Hook PetActionBar_Update: fires when pet bar refreshes (summon, dismiss, action changes)
+    if PetActionBar_Update then
+        hooksecurefunc("PetActionBar_Update", function()
+            if not DarkModeModule.applied then return end
+            addon:After(0.05, function()
+                if not DarkModeModule.applied then return end
+                local tint = GetTintValues()
+                DarkenPetButtonBorders(tint)
+            end)
         end)
     end
 
@@ -1095,8 +1112,15 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             self:RegisterEvent("SPELL_UPDATE_USABLE")
             self:RegisterEvent("ACTIONBAR_UPDATE_STATE")
             self:RegisterEvent("PLAYER_REGEN_DISABLED")
+            self:RegisterEvent("PLAYER_REGEN_ENABLED")
             self:RegisterEvent("PLAYER_TARGET_CHANGED")
             self:RegisterEvent("PLAYER_FOCUS_CHANGED")
+            self:RegisterEvent("UNIT_ENTERED_VEHICLE")
+            self:RegisterEvent("UNIT_EXITED_VEHICLE")
+            self:RegisterEvent("PET_BAR_UPDATE")
+            self:RegisterEvent("PLAYER_ALIVE")
+            self:RegisterEvent("PLAYER_UNGHOST")
+            self:RegisterEvent("UPDATE_SHAPESHIFT_FORMS")
             DarkModeModule.hooks.barEventsRegistered = true
         end
 
@@ -1160,6 +1184,67 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             if not DarkModeModule.applied then return end
             local tint = GetTintValues()
             DarkenActionButtonBorders(tint)
+        end)
+
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        -- Combat exit: Blizzard runs all deferred frame updates at once,
+        -- resetting NormalTexture vertex colors across bars and unit frames.
+        if not DarkModeModule.applied then return end
+        addon:After(0.15, function()
+            if not DarkModeModule.applied then return end
+            local tint = GetTintValues()
+            DarkenActionButtonBorders(tint)
+            DarkenStanceButtonBorders(tint)
+            DarkenPetButtonBorders(tint)
+            DarkenMainBarArt(tint)
+            local ufTint = GetUFTintValues()
+            DarkenUnitFrameBorders(ufTint)
+        end)
+
+    elseif event == "UNIT_ENTERED_VEHICLE" or event == "UNIT_EXITED_VEHICLE" then
+        -- Vehicle transitions rebuild player frame art and swap action bars.
+        if arg1 ~= "player" then return end
+        if not DarkModeModule.applied then return end
+        addon:After(0.2, function()
+            if not DarkModeModule.applied then return end
+            local ufTint = GetUFTintValues()
+            DarkenUnitFrameBorders(ufTint)
+            local tint = GetTintValues()
+            DarkenMainBarArt(tint)
+            DarkenActionButtonBorders(tint)
+        end)
+        -- Second pass — vehicle art rebuild can be slow
+        addon:After(0.5, function()
+            if not DarkModeModule.applied then return end
+            local ufTint = GetUFTintValues()
+            DarkenUnitFrameBorders(ufTint)
+        end)
+
+    elseif event == "PET_BAR_UPDATE" then
+        -- Pet bar refreshed (summon, dismiss, pet action changes)
+        if not DarkModeModule.applied then return end
+        addon:After(0.1, function()
+            if not DarkModeModule.applied then return end
+            local tint = GetTintValues()
+            DarkenPetButtonBorders(tint)
+        end)
+
+    elseif event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
+        -- Death/resurrect changes player frame art
+        if not DarkModeModule.applied then return end
+        addon:After(0.2, function()
+            if not DarkModeModule.applied then return end
+            local ufTint = GetUFTintValues()
+            DarkenUnitFrameBorders(ufTint)
+        end)
+
+    elseif event == "UPDATE_SHAPESHIFT_FORMS" then
+        -- Form list changed (learned new form) — stance buttons may be rebuilt
+        if not DarkModeModule.applied then return end
+        addon:After(0.15, function()
+            if not DarkModeModule.applied then return end
+            local tint = GetTintValues()
+            DarkenStanceButtonBorders(tint)
         end)
 
     elseif event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_FOCUS_CHANGED" then

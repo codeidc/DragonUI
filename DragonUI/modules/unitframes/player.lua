@@ -306,7 +306,7 @@ local function ApplyFatManaBar()
         PlayerFrameManaBar:SetSize(hasVehicleUI and 117 or 125, hasVehicleUI and 9 or 9)
         if hasVehicleUI then
             -- Vehicle: position relative to PlayerFrame (matches RetailUI pattern)
-            PlayerFrameManaBar:SetPoint('TOPLEFT', PlayerFrame, 'TOPLEFT', 78, -37)
+            PlayerFrameManaBar:SetPoint('TOPLEFT', PlayerFrame, 'TOPLEFT', 114, -58.5)
         else
             -- Normal: position relative to portrait
             PlayerFrameManaBar:SetPoint('LEFT', PlayerPortrait, 'RIGHT', 1, -16.5)
@@ -2074,7 +2074,7 @@ local function ChangePlayerframe()
     PlayerFrameHealthBar:ClearAllPoints()
     if hasVehicleUI then
         -- Vehicle: bar position relative to PlayerFrame
-        PlayerFrameHealthBar:SetSize(117.5, 18)
+        PlayerFrameHealthBar:SetSize(117.5, 19)
         PlayerFrameHealthBar:SetPoint('TOPLEFT', PlayerFrame, 'TOPLEFT', 113, -38)
         -- Raise bars above vehicle border texture
         PlayerFrameHealthBar:SetFrameLevel(PlayerFrame:GetFrameLevel() + 3)
