@@ -92,3 +92,10 @@ L["Show a safe-zone overlay based on real cast latency."] = "Affiche une zone de
 L["Latency Color"] = "Couleur de la latence"
 L["Latency Alpha"] = "Opacit\195\169 de la latence"
 L["Opacity of the latency indicator."] = "Opacit\195\169 de l'indicateur de latence."
+
+-- Combat Flash (player frame)
+L["Combat Flash"] = "Flash de Combat"
+L["Show Combat Flash"] = "Afficher le Flash de Combat"
+L["Pulsing glow effect when entering combat. Works with all frame modes."] = "Effet de pulsation lumineuse en entrant en combat. Fonctionne avec tous les modes de cadre."
+L["Combat Flash Opacity"] = "Opacit\195\169 du Flash de Combat"
+L["Maximum opacity of the combat flash pulse effect."] = "Opacit\195\169 maximale de l'effet de pulsation du flash de combat."

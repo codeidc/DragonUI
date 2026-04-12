@@ -219,6 +219,28 @@ local function BuildPlayerSection(scroll)
         callback = refreshPlayer,
     })
 
+    C:AddToggle(s, {
+        label = LO["Show Combat Flash"],
+        desc = LO["Pulsing glow effect when entering combat. Works with all frame modes."],
+        dbPath = "unitframe.player.combat_flash_enabled",
+        callback = function(val)
+            refreshPlayer()
+            Panel:SelectTab("unitframes")
+        end,
+    })
+
+    C:AddSlider(s, {
+        label = LO["Combat Flash Opacity"],
+        desc = LO["Maximum opacity of the combat flash pulse effect."],
+        dbPath = "unitframe.player.combat_flash_opacity",
+        min = 0.1, max = 1.0, step = 0.05,
+        width = 200,
+        disabled = function()
+            return not C:GetDBValue("unitframe.player.combat_flash_enabled")
+        end,
+        callback = refreshPlayer,
+    })
+
     -- Alternate mana (druid)
     C:AddHeading(s, LO["Alternate Mana (Druid)"])
 

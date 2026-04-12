@@ -473,6 +473,14 @@ local function IsEliteModeActive()
     return decorationType == "elite" or decorationType == "rareelite"
 end
 
+-- Get combat flash configuration (enabled + opacity multiplier)
+local function GetCombatFlashConfig()
+    local config = GetPlayerConfig()
+    local enabled = config.combat_flash_enabled ~= false -- default true
+    local opacity = config.combat_flash_opacity or 1.0
+    return enabled, opacity
+end
+
 -- Toggle glow visibility based on elite mode
 local function UpdateGlowVisibility()
     local dragonFrame = _G["DragonUIUnitframeFrame"]
@@ -514,8 +522,9 @@ local function UpdateGlowVisibility()
         end
 
         -- Vehicle combat flash: dedicated DragonUI frame with vehicle atlas shape
+        local combatFlashEnabled = GetCombatFlashConfig()
         if dragonFrame.VehicleCombatFlash then
-            if combatGlowVisible then
+            if combatGlowVisible and combatFlashEnabled then
                 dragonFrame.VehicleCombatFlash:Show()
                 dragonFrame.VehicleCombatTexture:SetAlpha(1)
             else
@@ -543,6 +552,7 @@ local function UpdateGlowVisibility()
     end
 
     eliteGlowActive = IsEliteModeActive()
+    local combatFlashEnabled = GetCombatFlashConfig()
 
     if dragonFrame.DragonUICombatGlow then
         if eliteGlowActive then
@@ -552,7 +562,7 @@ local function UpdateGlowVisibility()
         else
             -- In normal mode: show/hide original glow based on combatGlowVisible
             dragonFrame.DragonUICombatGlow:SetAlpha(1) -- Restore alpha
-            if combatGlowVisible then
+            if combatGlowVisible and combatFlashEnabled then
                 dragonFrame.DragonUICombatGlow:Show()
             else
                 dragonFrame.DragonUICombatGlow:Hide()
@@ -579,7 +589,7 @@ local function UpdateGlowVisibility()
             end
         end
         if dragonFrame.EliteCombatGlow then
-            if combatGlowVisible then
+            if combatGlowVisible and combatFlashEnabled then
                 dragonFrame.EliteCombatGlow:Show()
             else
                 dragonFrame.EliteCombatGlow:Hide()
@@ -649,6 +659,11 @@ local function AnimateCombatFlashPulse(elapsed)
         return
     end
 
+    local combatFlashEnabled, combatFlashOpacity = GetCombatFlashConfig()
+    if not combatFlashEnabled then
+        return
+    end
+
     -- Vehicle mode: pulse dedicated VehicleCombatFlash (uses vehicle atlas shape)
     if IsInVehicle() then
         local dragonFrame = _G["DragonUIUnitframeFrame"]
@@ -657,7 +672,7 @@ local function AnimateCombatFlashPulse(elapsed)
             local pulseAlpha = COMBAT_PULSE_SETTINGS.minAlpha +
                                    (COMBAT_PULSE_SETTINGS.maxAlpha - COMBAT_PULSE_SETTINGS.minAlpha) *
                                    (math.sin(combatPulseTimer) * 0.5 + 0.5)
-            dragonFrame.VehicleCombatTexture:SetAlpha(pulseAlpha)
+            dragonFrame.VehicleCombatTexture:SetAlpha(pulseAlpha * combatFlashOpacity)
         end
         return
     end
@@ -680,7 +695,7 @@ local function AnimateCombatFlashPulse(elapsed)
                                (math.sin(combatPulseTimer) * 0.5 + 0.5)
 
         if dragonFrame.EliteCombatGlow and dragonFrame.EliteCombatGlow:IsVisible() then
-            dragonFrame.EliteCombatTexture:SetAlpha(pulseAlpha)
+            dragonFrame.EliteCombatTexture:SetAlpha(pulseAlpha * combatFlashOpacity)
         end
     else
         -- Normal mode: use normal configuration
@@ -695,7 +710,7 @@ local function AnimateCombatFlashPulse(elapsed)
                                (math.sin(combatPulseTimer) * 0.5 + 0.5)
 
         if dragonFrame.DragonUICombatGlow and dragonFrame.DragonUICombatGlow:IsVisible() then
-            dragonFrame.DragonUICombatTexture:SetAlpha(pulseAlpha)
+            dragonFrame.DragonUICombatTexture:SetAlpha(pulseAlpha * combatFlashOpacity)
         end
     end
 end
