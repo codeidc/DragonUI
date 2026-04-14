@@ -571,6 +571,11 @@ L["Reset focus castbar position to default"] = true
 L["Player castbar position reset."] = true
 L["Target castbar position reset."] = true
 L["Focus castbar position reset."] = true
+L["Castbar detached - positioned freely via Editor Mode"] = true
+L["Castbar attached - follows Target frame"] = true
+L["Castbar attached - follows Focus frame"] = true
+L["Re-attach Castbar to Target"] = true
+L["Re-attach Castbar to Focus"] = true
 
 -- Width/height descriptions for target/focus
 L["Width of the target castbar"] = true

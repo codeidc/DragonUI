@@ -550,6 +550,11 @@ L["Reset focus castbar position to default"] = "Fokus-Zauberleiste-Position auf 
 L["Player castbar position reset."] = "Spieler-Zauberleiste-Position zurückgesetzt."
 L["Target castbar position reset."] = "Ziel-Zauberleiste-Position zurückgesetzt."
 L["Focus castbar position reset."] = "Fokus-Zauberleiste-Position zurückgesetzt."
+L["Castbar detached - positioned freely via Editor Mode"] = "Zauberleiste geloest - frei im Editor-Modus positioniert"
+L["Castbar attached - follows Target frame"] = "Zauberleiste angeheftet - folgt dem Zielrahmen"
+L["Castbar attached - follows Focus frame"] = "Zauberleiste angeheftet - folgt dem Fokusrahmen"
+L["Re-attach Castbar to Target"] = "Zauberleiste wieder an Zielrahmen anheften"
+L["Re-attach Castbar to Focus"] = "Zauberleiste wieder an Fokusrahmen anheften"
 
 -- Width/height descriptions for target/focus
 L["Width of the target castbar"] = "Breite der Ziel-Zauberleiste"

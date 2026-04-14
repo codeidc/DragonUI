@@ -550,6 +550,11 @@ L["Reset focus castbar position to default"] = "Restablecer la posición de la b
 L["Player castbar position reset."] = "Posición de la barra del jugador restablecida."
 L["Target castbar position reset."] = "Posición de la barra del objetivo restablecida."
 L["Focus castbar position reset."] = "Posición de la barra del foco restablecida."
+L["Castbar detached - positioned freely via Editor Mode"] = "Barra de lanzamiento desacoplada - posicion libre con Modo Editor"
+L["Castbar attached - follows Target frame"] = "Barra de lanzamiento acoplada - sigue al marco de Objetivo"
+L["Castbar attached - follows Focus frame"] = "Barra de lanzamiento acoplada - sigue al marco de Foco"
+L["Re-attach Castbar to Target"] = "Volver a acoplar barra al Objetivo"
+L["Re-attach Castbar to Focus"] = "Volver a acoplar barra al Foco"
 
 -- Width/height descriptions for target/focus
 L["Width of the target castbar"] = "Ancho de la barra de lanzamiento del objetivo"

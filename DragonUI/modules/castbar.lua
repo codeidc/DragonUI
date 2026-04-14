@@ -88,6 +88,8 @@ local CastbarModule = {
     frames = {},
     initialized = false,
     anchor = nil,
+    targetAnchor = nil,
+    focusAnchor = nil,
     blizzardHidden = {},  -- Track which Blizzard castbars we've hidden
     suppressLayoutHook = false
 }
@@ -132,6 +134,31 @@ end
 local function IsEnabled(unitType)
     local cfg = GetConfig(unitType)
     return cfg and cfg.enabled
+end
+
+local function GetCastbarWidgetKey(unitType)
+    if unitType == "target" then
+        return "targetCastbar"
+    elseif unitType == "focus" then
+        return "focusCastbar"
+    end
+
+    return nil
+end
+
+local function GetCastbarAnchorFrame(unitType)
+    if unitType == "target" then
+        return CastbarModule.targetAnchor
+    elseif unitType == "focus" then
+        return CastbarModule.focusAnchor
+    end
+
+    return nil
+end
+
+local function IsCastbarDetached(unitType)
+    local cfg = GetConfig(unitType)
+    return cfg and cfg.override == true
 end
 
 local function GetLatencyConfig()
@@ -1604,161 +1631,177 @@ function CastbarModule:RefreshCastbar(unitType)
             relativePoint = "BOTTOM"
         end
     elseif unitType == "target" then
-        local blizzSpellBar = TargetFrameSpellBar
-        local hasUnit = UnitExists("target")
-        local hasCompanion = HasCompanionUnit("target")
-        local isDetached = IsCompanionDetached("target")
-        local auraRows = hasUnit and ((TargetFrame and TargetFrame.auraRows) or 0) or 0
-        local extraAuraOffset = GetExtraAuraRowOffset(auraRows)
-        local useCompanionSpacing = ShouldApplyCompanionSpacing("target", hasCompanion, auraRows)
-        local buffAnchor = hasUnit and TargetFrameBuff1 and TargetFrameBuff1:IsShown() and TargetFrameBuff1 or nil
-        local debuffAnchor = hasUnit and TargetFrameDebuff1 and TargetFrameDebuff1:IsShown() and TargetFrameDebuff1 or nil
-        local auraAnchor, auraAnchorSource = nil, "none"
-        if hasUnit then
-            auraAnchor, auraAnchorSource = GetAuraAnchor(TargetFrame, buffAnchor, debuffAnchor)
-        end
-        local fallbackAuraOffset = (auraAnchorSource == "spellbarAnchor") and 0 or extraAuraOffset
-        local auraAnchorOffset = GetAuraStackGeometryOffset("target", TargetFrame, auraAnchor, auraAnchorSource, fallbackAuraOffset)
-        local detachedStableOffset = 0
-        if isDetached then
-            detachedStableOffset = GetSpellbarToLowestAuraOffset("target", TargetFrame) + DETACHED_GAP_TUNE
-            auraAnchorOffset = detachedStableOffset
-        end
-
-        AdjustSpellbarPositionSafely(blizzSpellBar)
-        local spellPoint, spellRel, spellRelPoint, spellX, spellY = nil, nil, nil, 0, 0
-        if blizzSpellBar then
-            spellPoint, spellRel, spellRelPoint, spellX, spellY = blizzSpellBar:GetPoint(1)
-        end
-
-        -- Use deterministic anchors to avoid stale Blizzard spellbar offsets after clear-target paths.
-        if useCompanionSpacing and TargetFrame then
-            anchorFrame = TargetFrame
-            anchorPoint = "TOPLEFT"
-            relativePoint = "BOTTOMLEFT"
-            xPos = 25
-            yPos = -21 - extraAuraOffset
-        elseif auraAnchor then
-            anchorFrame = (isDetached and TargetFrame and TargetFrame.spellbarAnchor) and TargetFrame.spellbarAnchor or auraAnchor
-            anchorPoint = "TOPLEFT"
-            relativePoint = "BOTTOMLEFT"
-            xPos = 20
-            yPos = GetAuraAnchorYOffset(cfg) - auraAnchorOffset
+        if IsCastbarDetached("target") and self.targetAnchor then
+            anchorFrame = self.targetAnchor
+            anchorPoint = "CENTER"
+            relativePoint = "CENTER"
+            xPos = 0
+            yPos = 0
         else
-            anchorFrame = TargetFrame or blizzSpellBar or UIParent
-            anchorPoint = "TOPLEFT"
-            relativePoint = "BOTTOMLEFT"
-            xPos = 25
-            yPos = 7
-        end
-
-        local targetDistanceCorrection = isDetached and 0 or GetTargetAuraDistanceCorrection()
-        yPos = yPos + targetDistanceCorrection
-
-        if addon and addon.debugMode then
-            local relName = "nil"
-            if spellRel and spellRel.GetName then
-                relName = spellRel:GetName() or "unnamed"
+            local blizzSpellBar = TargetFrameSpellBar
+            local hasUnit = UnitExists("target")
+            local hasCompanion = HasCompanionUnit("target")
+            local isDetached = IsCompanionDetached("target")
+            local auraRows = hasUnit and ((TargetFrame and TargetFrame.auraRows) or 0) or 0
+            local extraAuraOffset = GetExtraAuraRowOffset(auraRows)
+            local useCompanionSpacing = ShouldApplyCompanionSpacing("target", hasCompanion, auraRows)
+            local buffAnchor = hasUnit and TargetFrameBuff1 and TargetFrameBuff1:IsShown() and TargetFrameBuff1 or nil
+            local debuffAnchor = hasUnit and TargetFrameDebuff1 and TargetFrameDebuff1:IsShown() and TargetFrameDebuff1 or nil
+            local auraAnchor, auraAnchorSource = nil, "none"
+            if hasUnit then
+                auraAnchor, auraAnchorSource = GetAuraAnchor(TargetFrame, buffAnchor, debuffAnchor)
             end
-            local anchorName = (anchorFrame and anchorFrame.GetName and anchorFrame:GetName()) or "unnamed"
-            addon:Debug(
-                "CastbarLayout",
-                "target",
-                "companionShown=" .. tostring(hasCompanion and 1 or 0),
-                "companionSpacing=" .. tostring(useCompanionSpacing and 1 or 0),
-                "auraRows=" .. tostring(auraRows),
-                "extraAuraOffset=" .. tostring(extraAuraOffset),
-                "auraAnchorOffset=" .. tostring(auraAnchorOffset),
-                "detachedStableOffset=" .. tostring(detachedStableOffset),
-                "targetCorrection=" .. tostring(targetDistanceCorrection),
-                "auraAnchorSource=" .. tostring(auraAnchorSource),
-                "spellbarRel=" .. relName,
-                "anchor=" .. tostring(anchorName),
-                "spellPoint=" .. tostring(spellPoint or "nil"),
-                "spellRelPoint=" .. tostring(spellRelPoint or "nil"),
-                "spellX=" .. tostring(spellX or 0),
-                "spellY=" .. tostring(spellY or 0),
-                "x=" .. tostring(xPos),
-                "y=" .. tostring(yPos)
-            )
+            local fallbackAuraOffset = (auraAnchorSource == "spellbarAnchor") and 0 or extraAuraOffset
+            local auraAnchorOffset = GetAuraStackGeometryOffset("target", TargetFrame, auraAnchor, auraAnchorSource, fallbackAuraOffset)
+            local detachedStableOffset = 0
+            if isDetached then
+                detachedStableOffset = GetSpellbarToLowestAuraOffset("target", TargetFrame) + DETACHED_GAP_TUNE
+                auraAnchorOffset = detachedStableOffset
+            end
+
+            AdjustSpellbarPositionSafely(blizzSpellBar)
+            local spellPoint, spellRel, spellRelPoint, spellX, spellY = nil, nil, nil, 0, 0
+            if blizzSpellBar then
+                spellPoint, spellRel, spellRelPoint, spellX, spellY = blizzSpellBar:GetPoint(1)
+            end
+
+            -- Use deterministic anchors to avoid stale Blizzard spellbar offsets after clear-target paths.
+            if useCompanionSpacing and TargetFrame then
+                anchorFrame = TargetFrame
+                anchorPoint = "TOPLEFT"
+                relativePoint = "BOTTOMLEFT"
+                xPos = 25
+                yPos = -21 - extraAuraOffset
+            elseif auraAnchor then
+                anchorFrame = (isDetached and TargetFrame and TargetFrame.spellbarAnchor) and TargetFrame.spellbarAnchor or auraAnchor
+                anchorPoint = "TOPLEFT"
+                relativePoint = "BOTTOMLEFT"
+                xPos = 20
+                yPos = GetAuraAnchorYOffset(cfg) - auraAnchorOffset
+            else
+                anchorFrame = TargetFrame or blizzSpellBar or UIParent
+                anchorPoint = "TOPLEFT"
+                relativePoint = "BOTTOMLEFT"
+                xPos = 25
+                yPos = 7
+            end
+
+            local targetDistanceCorrection = isDetached and 0 or GetTargetAuraDistanceCorrection()
+            yPos = yPos + targetDistanceCorrection
+
+            if addon and addon.debugMode then
+                local relName = "nil"
+                if spellRel and spellRel.GetName then
+                    relName = spellRel:GetName() or "unnamed"
+                end
+                local anchorName = (anchorFrame and anchorFrame.GetName and anchorFrame:GetName()) or "unnamed"
+                addon:Debug(
+                    "CastbarLayout",
+                    "target",
+                    "companionShown=" .. tostring(hasCompanion and 1 or 0),
+                    "companionSpacing=" .. tostring(useCompanionSpacing and 1 or 0),
+                    "auraRows=" .. tostring(auraRows),
+                    "extraAuraOffset=" .. tostring(extraAuraOffset),
+                    "auraAnchorOffset=" .. tostring(auraAnchorOffset),
+                    "detachedStableOffset=" .. tostring(detachedStableOffset),
+                    "targetCorrection=" .. tostring(targetDistanceCorrection),
+                    "auraAnchorSource=" .. tostring(auraAnchorSource),
+                    "spellbarRel=" .. relName,
+                    "anchor=" .. tostring(anchorName),
+                    "spellPoint=" .. tostring(spellPoint or "nil"),
+                    "spellRelPoint=" .. tostring(spellRelPoint or "nil"),
+                    "spellX=" .. tostring(spellX or 0),
+                    "spellY=" .. tostring(spellY or 0),
+                    "x=" .. tostring(xPos),
+                    "y=" .. tostring(yPos)
+                )
+            end
         end
     elseif unitType == "focus" then
-        local blizzSpellBar = FocusFrameSpellBar
-        local hasUnit = UnitExists("focus")
-        local hasCompanion = HasCompanionUnit("focus")
-        local isDetached = IsCompanionDetached("focus")
-        local auraRows = hasUnit and ((FocusFrame and FocusFrame.auraRows) or 0) or 0
-        local extraAuraOffset = GetExtraAuraRowOffset(auraRows)
-        local useCompanionSpacing = ShouldApplyCompanionSpacing("focus", hasCompanion, auraRows)
-        local buffAnchor = hasUnit and FocusFrameBuff1 and FocusFrameBuff1:IsShown() and FocusFrameBuff1 or nil
-        local debuffAnchor = hasUnit and FocusFrameDebuff1 and FocusFrameDebuff1:IsShown() and FocusFrameDebuff1 or nil
-        local auraAnchor, auraAnchorSource = nil, "none"
-        if hasUnit then
-            auraAnchor, auraAnchorSource = GetAuraAnchor(FocusFrame, buffAnchor, debuffAnchor)
-        end
-        local fallbackAuraOffset = (auraAnchorSource == "spellbarAnchor") and 0 or extraAuraOffset
-        local auraAnchorOffset = GetAuraStackGeometryOffset("focus", FocusFrame, auraAnchor, auraAnchorSource, fallbackAuraOffset)
-        local detachedStableOffset = 0
-        if isDetached then
-            detachedStableOffset = GetSpellbarToLowestAuraOffset("focus", FocusFrame) + DETACHED_GAP_TUNE
-            auraAnchorOffset = detachedStableOffset
-        end
-
-        AdjustSpellbarPositionSafely(blizzSpellBar)
-        local spellPoint, spellRel, spellRelPoint, spellX, spellY = nil, nil, nil, 0, 0
-        if blizzSpellBar then
-            spellPoint, spellRel, spellRelPoint, spellX, spellY = blizzSpellBar:GetPoint(1)
-        end
-
-        if useCompanionSpacing and FocusFrame then
-            anchorFrame = FocusFrame
-            anchorPoint = "TOPLEFT"
-            relativePoint = "BOTTOMLEFT"
-            xPos = 25
-            yPos = -21 - extraAuraOffset
-        elseif auraAnchor then
-            anchorFrame = (isDetached and FocusFrame and FocusFrame.spellbarAnchor) and FocusFrame.spellbarAnchor or auraAnchor
-            anchorPoint = "TOPLEFT"
-            relativePoint = "BOTTOMLEFT"
-            xPos = 20
-            yPos = GetAuraAnchorYOffset(cfg) - auraAnchorOffset
+        if IsCastbarDetached("focus") and self.focusAnchor then
+            anchorFrame = self.focusAnchor
+            anchorPoint = "CENTER"
+            relativePoint = "CENTER"
+            xPos = 0
+            yPos = 0
         else
-            anchorFrame = FocusFrame or blizzSpellBar or UIParent
-            anchorPoint = "TOPLEFT"
-            relativePoint = "BOTTOMLEFT"
-            xPos = 25
-            yPos = 7
-        end
-
-        local focusDistanceCorrection = isDetached and 0 or GetFocusAuraDistanceCorrection()
-        yPos = yPos + focusDistanceCorrection
-
-        if addon and addon.debugMode then
-            local relName = "nil"
-            if spellRel and spellRel.GetName then
-                relName = spellRel:GetName() or "unnamed"
+            local blizzSpellBar = FocusFrameSpellBar
+            local hasUnit = UnitExists("focus")
+            local hasCompanion = HasCompanionUnit("focus")
+            local isDetached = IsCompanionDetached("focus")
+            local auraRows = hasUnit and ((FocusFrame and FocusFrame.auraRows) or 0) or 0
+            local extraAuraOffset = GetExtraAuraRowOffset(auraRows)
+            local useCompanionSpacing = ShouldApplyCompanionSpacing("focus", hasCompanion, auraRows)
+            local buffAnchor = hasUnit and FocusFrameBuff1 and FocusFrameBuff1:IsShown() and FocusFrameBuff1 or nil
+            local debuffAnchor = hasUnit and FocusFrameDebuff1 and FocusFrameDebuff1:IsShown() and FocusFrameDebuff1 or nil
+            local auraAnchor, auraAnchorSource = nil, "none"
+            if hasUnit then
+                auraAnchor, auraAnchorSource = GetAuraAnchor(FocusFrame, buffAnchor, debuffAnchor)
             end
-            local anchorName = (anchorFrame and anchorFrame.GetName and anchorFrame:GetName()) or "unnamed"
-            addon:Debug(
-                "CastbarLayout",
-                "focus",
-                "companionShown=" .. tostring(hasCompanion and 1 or 0),
-                "companionSpacing=" .. tostring(useCompanionSpacing and 1 or 0),
-                "auraRows=" .. tostring(auraRows),
-                "extraAuraOffset=" .. tostring(extraAuraOffset),
-                "auraAnchorOffset=" .. tostring(auraAnchorOffset),
-                "detachedStableOffset=" .. tostring(detachedStableOffset),
-                "focusCorrection=" .. tostring(focusDistanceCorrection),
-                "auraAnchorSource=" .. tostring(auraAnchorSource),
-                "spellbarRel=" .. relName,
-                "anchor=" .. tostring(anchorName),
-                "spellPoint=" .. tostring(spellPoint or "nil"),
-                "spellRelPoint=" .. tostring(spellRelPoint or "nil"),
-                "spellX=" .. tostring(spellX or 0),
-                "spellY=" .. tostring(spellY or 0),
-                "x=" .. tostring(xPos),
-                "y=" .. tostring(yPos)
-            )
+            local fallbackAuraOffset = (auraAnchorSource == "spellbarAnchor") and 0 or extraAuraOffset
+            local auraAnchorOffset = GetAuraStackGeometryOffset("focus", FocusFrame, auraAnchor, auraAnchorSource, fallbackAuraOffset)
+            local detachedStableOffset = 0
+            if isDetached then
+                detachedStableOffset = GetSpellbarToLowestAuraOffset("focus", FocusFrame) + DETACHED_GAP_TUNE
+                auraAnchorOffset = detachedStableOffset
+            end
+
+            AdjustSpellbarPositionSafely(blizzSpellBar)
+            local spellPoint, spellRel, spellRelPoint, spellX, spellY = nil, nil, nil, 0, 0
+            if blizzSpellBar then
+                spellPoint, spellRel, spellRelPoint, spellX, spellY = blizzSpellBar:GetPoint(1)
+            end
+
+            if useCompanionSpacing and FocusFrame then
+                anchorFrame = FocusFrame
+                anchorPoint = "TOPLEFT"
+                relativePoint = "BOTTOMLEFT"
+                xPos = 25
+                yPos = -21 - extraAuraOffset
+            elseif auraAnchor then
+                anchorFrame = (isDetached and FocusFrame and FocusFrame.spellbarAnchor) and FocusFrame.spellbarAnchor or auraAnchor
+                anchorPoint = "TOPLEFT"
+                relativePoint = "BOTTOMLEFT"
+                xPos = 20
+                yPos = GetAuraAnchorYOffset(cfg) - auraAnchorOffset
+            else
+                anchorFrame = FocusFrame or blizzSpellBar or UIParent
+                anchorPoint = "TOPLEFT"
+                relativePoint = "BOTTOMLEFT"
+                xPos = 25
+                yPos = 7
+            end
+
+            local focusDistanceCorrection = isDetached and 0 or GetFocusAuraDistanceCorrection()
+            yPos = yPos + focusDistanceCorrection
+
+            if addon and addon.debugMode then
+                local relName = "nil"
+                if spellRel and spellRel.GetName then
+                    relName = spellRel:GetName() or "unnamed"
+                end
+                local anchorName = (anchorFrame and anchorFrame.GetName and anchorFrame:GetName()) or "unnamed"
+                addon:Debug(
+                    "CastbarLayout",
+                    "focus",
+                    "companionShown=" .. tostring(hasCompanion and 1 or 0),
+                    "companionSpacing=" .. tostring(useCompanionSpacing and 1 or 0),
+                    "auraRows=" .. tostring(auraRows),
+                    "extraAuraOffset=" .. tostring(extraAuraOffset),
+                    "auraAnchorOffset=" .. tostring(auraAnchorOffset),
+                    "detachedStableOffset=" .. tostring(detachedStableOffset),
+                    "focusCorrection=" .. tostring(focusDistanceCorrection),
+                    "auraAnchorSource=" .. tostring(auraAnchorSource),
+                    "spellbarRel=" .. relName,
+                    "anchor=" .. tostring(anchorName),
+                    "spellPoint=" .. tostring(spellPoint or "nil"),
+                    "spellRelPoint=" .. tostring(spellRelPoint or "nil"),
+                    "spellX=" .. tostring(spellX or 0),
+                    "spellY=" .. tostring(spellY or 0),
+                    "x=" .. tostring(xPos),
+                    "y=" .. tostring(yPos)
+                )
+            end
         end
     end
     
@@ -2080,6 +2123,26 @@ local function CreateCastbarAnchorFrame()
     return CastbarModule.anchor
 end
 
+local function CreateTargetCastbarAnchorFrame()
+    if CastbarModule.targetAnchor then
+        return CastbarModule.targetAnchor
+    end
+
+    CastbarModule.targetAnchor = addon.CreateUIFrame(150, 10, "TargetCastbar")
+
+    return CastbarModule.targetAnchor
+end
+
+local function CreateFocusCastbarAnchorFrame()
+    if CastbarModule.focusAnchor then
+        return CastbarModule.focusAnchor
+    end
+
+    CastbarModule.focusAnchor = addon.CreateUIFrame(150, 10, "FocusCastbar")
+
+    return CastbarModule.focusAnchor
+end
+
 local function ApplyWidgetPosition()
     if not CastbarModule.anchor then
         return
@@ -2101,6 +2164,75 @@ local function ApplyWidgetPosition()
     end
 end
 
+local function ApplyCastbarWidgetPosition(unitType)
+    local widgetKey = GetCastbarWidgetKey(unitType)
+    local anchorFrame = GetCastbarAnchorFrame(unitType)
+    if not widgetKey or not anchorFrame then
+        return
+    end
+
+    -- Keep attached castbars driven by smart positioning only.
+    -- Applying widget coordinates while attached can recenter unrelated overlays in editor mode.
+    if not IsCastbarDetached(unitType) then
+        return
+    end
+
+    if not addon.db or not addon.db.profile or not addon.db.profile.widgets then
+        return
+    end
+
+    local widgetConfig = addon.db.profile.widgets[widgetKey]
+    if widgetConfig and widgetConfig.posX ~= nil and widgetConfig.posY ~= nil then
+        local anchor = widgetConfig.anchor or "CENTER"
+        anchorFrame:ClearAllPoints()
+        anchorFrame:SetPoint(anchor, UIParent, anchor, widgetConfig.posX, widgetConfig.posY)
+    else
+        anchorFrame:ClearAllPoints()
+        anchorFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    end
+end
+
+local function SyncCastbarAnchorToContainer(unitType)
+    local anchorFrame = GetCastbarAnchorFrame(unitType)
+    local frames = CastbarModule.frames[unitType]
+    if not anchorFrame or not frames or not frames.container then
+        return
+    end
+
+    local cx, cy = frames.container:GetCenter()
+    local ux, uy = UIParent:GetCenter()
+    if cx and cy and ux and uy then
+        anchorFrame:ClearAllPoints()
+        anchorFrame:SetPoint("CENTER", UIParent, "CENTER", cx - ux, cy - uy)
+    end
+end
+
+local function PersistCastbarAnchorPosition(unitType)
+    local widgetKey = GetCastbarWidgetKey(unitType)
+    local anchorFrame = GetCastbarAnchorFrame(unitType)
+    if not widgetKey or not anchorFrame then
+        return false
+    end
+
+    if not addon.db or not addon.db.profile then
+        return false
+    end
+
+    addon.db.profile.widgets = addon.db.profile.widgets or {}
+    addon.db.profile.widgets[widgetKey] = addon.db.profile.widgets[widgetKey] or {}
+
+    local cx, cy = anchorFrame:GetCenter()
+    local ux, uy = UIParent:GetCenter()
+    if not (cx and cy and ux and uy) then
+        return false
+    end
+
+    addon.db.profile.widgets[widgetKey].anchor = "CENTER"
+    addon.db.profile.widgets[widgetKey].posX = floor((cx - ux) + 0.5)
+    addon.db.profile.widgets[widgetKey].posY = floor((cy - uy) + 0.5)
+    return true
+end
+
 function CastbarModule:LoadDefaultSettings()
     if not addon.db.profile.widgets then
         addon.db.profile.widgets = {}
@@ -2113,16 +2245,45 @@ function CastbarModule:LoadDefaultSettings()
             posY = 270
         }
     end
+
+    if not addon.db.profile.widgets.targetCastbar then
+        addon.db.profile.widgets.targetCastbar = {
+            anchor = "CENTER",
+            posX = 0,
+            posY = 0
+        }
+    end
+
+    if not addon.db.profile.widgets.focusCastbar then
+        addon.db.profile.widgets.focusCastbar = {
+            anchor = "CENTER",
+            posX = 0,
+            posY = 0
+        }
+    end
     
     if not addon.db.profile.castbar then
         addon.db.profile.castbar = {}
+    end
+
+    if addon.db.profile.castbar.target and addon.db.profile.castbar.target.override == nil then
+        addon.db.profile.castbar.target.override = false
+    end
+
+    if addon.db.profile.castbar.focus and addon.db.profile.castbar.focus.override == nil then
+        addon.db.profile.castbar.focus.override = false
     end
 end
 
 function CastbarModule:UpdateWidgets()
     ApplyWidgetPosition()
+    ApplyCastbarWidgetPosition("target")
+    ApplyCastbarWidgetPosition("focus")
+
     if not InCombatLockdown() then
         self:RefreshCastbar("player")
+        self:RefreshCastbar("target")
+        self:RefreshCastbar("focus")
     end
 end
 
@@ -2152,6 +2313,56 @@ end
 
 local function HidePlayerCastbarTest()
     CastbarModule:HideCastbar("player")
+end
+
+local function ShowCastbarTest(unitType)
+    local frames = CastbarModule.frames[unitType]
+    if not frames.container then
+        CreateCastbar(unitType)
+        frames = CastbarModule.frames[unitType]
+    end
+
+    CastbarModule:RefreshCastbar(unitType)
+
+    if not IsCastbarDetached(unitType) then
+        SyncCastbarAnchorToContainer(unitType)
+    end
+
+    if frames.container then
+        frames.container:Show()
+        CastbarModule:ShowCastbar(unitType, "Fireball", 0.5, 1, 86400, false, false)
+        if frames.castbar then
+            frames.castbar.castingEx = false
+            frames.castbar.channelingEx = false
+            frames.castbar:SetValue(0.5)
+        end
+    end
+end
+
+local function HideCastbarTest(unitType)
+    CastbarModule:HideCastbar(unitType)
+end
+
+local function HandleCastbarEditorHide(unitType)
+    local anchorFrame = GetCastbarAnchorFrame(unitType)
+    if not anchorFrame then
+        return
+    end
+
+    if anchorFrame.DragonUI_WasDragged or anchorFrame.DragonUI_WasAdjustedByEditor then
+        local cfg = GetConfig(unitType)
+        if cfg then
+            cfg.override = true
+        end
+
+        PersistCastbarAnchorPosition(unitType)
+
+        anchorFrame.DragonUI_WasDragged = nil
+        anchorFrame.DragonUI_WasAdjustedByEditor = nil
+    end
+
+    ApplyCastbarWidgetPosition(unitType)
+    CastbarModule:RefreshCastbar(unitType)
 end
 
 function CastbarModule:ShowCastbar(unitType, spellName, currentValue, maxValue, duration, isChanneling, isInterrupted)
@@ -2232,6 +2443,52 @@ end
 
 local function InitializeCastbarForEditor()
     CreateCastbarAnchorFrame()
+    CreateTargetCastbarAnchorFrame()
+    CreateFocusCastbarAnchorFrame()
+
+    if CastbarModule.targetAnchor then
+        CastbarModule.targetAnchor:HookScript("OnDragStart", function()
+            local cfg = GetConfig("target")
+            if cfg and not cfg.override then
+                cfg.override = true
+                CastbarModule:RefreshCastbar("target")
+            end
+        end)
+
+        CastbarModule.targetAnchor:HookScript("OnDragStop", function(self)
+            self.DragonUI_WasDragged = true
+
+            local cfg = GetConfig("target")
+            if cfg then
+                cfg.override = true
+            end
+
+            PersistCastbarAnchorPosition("target")
+            CastbarModule:UpdateWidgets()
+        end)
+    end
+
+    if CastbarModule.focusAnchor then
+        CastbarModule.focusAnchor:HookScript("OnDragStart", function()
+            local cfg = GetConfig("focus")
+            if cfg and not cfg.override then
+                cfg.override = true
+                CastbarModule:RefreshCastbar("focus")
+            end
+        end)
+
+        CastbarModule.focusAnchor:HookScript("OnDragStop", function(self)
+            self.DragonUI_WasDragged = true
+
+            local cfg = GetConfig("focus")
+            if cfg then
+                cfg.override = true
+            end
+
+            PersistCastbarAnchorPosition("focus")
+            CastbarModule:UpdateWidgets()
+        end)
+    end
     
     addon:RegisterEditableFrame({
         name = "PlayerCastbar",
@@ -2251,6 +2508,52 @@ local function InitializeCastbarForEditor()
             CastbarModule:UpdateWidgets()
         end
     })
+
+    addon:RegisterEditableFrame({
+        name = "TargetCastbar",
+        frame = CastbarModule.targetAnchor,
+        configPath = {"widgets", "targetCastbar"},
+        hasTarget = function()
+            return IsEnabled("target")
+        end,
+        editorVisible = function()
+            return IsEnabled("target")
+        end,
+        showTest = function()
+            ShowCastbarTest("target")
+        end,
+        hideTest = function()
+            HideCastbarTest("target")
+        end,
+        onHide = function()
+            HandleCastbarEditorHide("target")
+        end,
+    })
+
+    addon:RegisterEditableFrame({
+        name = "FocusCastbar",
+        frame = CastbarModule.focusAnchor,
+        configPath = {"widgets", "focusCastbar"},
+        hasTarget = function()
+            return IsEnabled("focus")
+        end,
+        editorVisible = function()
+            return IsEnabled("focus")
+        end,
+        showTest = function()
+            ShowCastbarTest("focus")
+        end,
+        hideTest = function()
+            HideCastbarTest("focus")
+        end,
+        onHide = function()
+            HandleCastbarEditorHide("focus")
+        end,
+    })
+
+    ApplyWidgetPosition()
+    ApplyCastbarWidgetPosition("target")
+    ApplyCastbarWidgetPosition("focus")
     
     CastbarModule.initialized = true
 end
@@ -2354,6 +2657,74 @@ function addon.RefreshFocusCastbar()
     CastbarModule:RefreshCastbar("focus")
 end
 
+function addon.ResetTargetCastbarPosition()
+    if not addon.db or not addon.db.profile then
+        return
+    end
+
+    if addon.db.profile.castbar and addon.db.profile.castbar.target then
+        addon.db.profile.castbar.target.override = false
+    end
+
+    addon.db.profile.widgets = addon.db.profile.widgets or {}
+
+    local defaults = addon.defaults and addon.defaults.profile and addon.defaults.profile.widgets and addon.defaults.profile.widgets.targetCastbar
+    if defaults then
+        if addon.CopyTable then
+            addon.db.profile.widgets.targetCastbar = addon:CopyTable(defaults)
+        else
+            addon.db.profile.widgets.targetCastbar = {
+                anchor = defaults.anchor,
+                posX = defaults.posX,
+                posY = defaults.posY,
+            }
+        end
+    else
+        addon.db.profile.widgets.targetCastbar = {
+            anchor = "CENTER",
+            posX = 0,
+            posY = 0,
+        }
+    end
+
+    ApplyCastbarWidgetPosition("target")
+    CastbarModule:RefreshCastbar("target")
+end
+
+function addon.ResetFocusCastbarPosition()
+    if not addon.db or not addon.db.profile then
+        return
+    end
+
+    if addon.db.profile.castbar and addon.db.profile.castbar.focus then
+        addon.db.profile.castbar.focus.override = false
+    end
+
+    addon.db.profile.widgets = addon.db.profile.widgets or {}
+
+    local defaults = addon.defaults and addon.defaults.profile and addon.defaults.profile.widgets and addon.defaults.profile.widgets.focusCastbar
+    if defaults then
+        if addon.CopyTable then
+            addon.db.profile.widgets.focusCastbar = addon:CopyTable(defaults)
+        else
+            addon.db.profile.widgets.focusCastbar = {
+                anchor = defaults.anchor,
+                posX = defaults.posX,
+                posY = defaults.posY,
+            }
+        end
+    else
+        addon.db.profile.widgets.focusCastbar = {
+            anchor = "CENTER",
+            posX = 0,
+            posY = 0,
+        }
+    end
+
+    ApplyCastbarWidgetPosition("focus")
+    CastbarModule:RefreshCastbar("focus")
+end
+
 -- Initialize event frame
 local eventFrame = CreateFrame('Frame', 'DragonUICastbarEventHandler')
 local events = {
@@ -2392,6 +2763,8 @@ readyFrame:SetScript("OnEvent", function(self, event, addonName)
         if CastbarModule.UpdateWidgets then
             CastbarModule:UpdateWidgets()
         end
+        ApplyCastbarWidgetPosition("target")
+        ApplyCastbarWidgetPosition("focus")
         self:UnregisterEvent("ADDON_LOADED")
     end
 end)

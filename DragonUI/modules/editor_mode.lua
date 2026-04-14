@@ -368,6 +368,16 @@ function EditorMode:ResetAllPositions()
             addon.db.profile.unitframe.fot.override = false
         end
     end
+
+    -- Reset target/focus castbar override flags so they re-attach to smart layout
+    if addon.db.profile.castbar then
+        if addon.db.profile.castbar.target then
+            addon.db.profile.castbar.target.override = false
+        end
+        if addon.db.profile.castbar.focus then
+            addon.db.profile.castbar.focus.override = false
+        end
+    end
     
     -- Also reset additional.totem (multicast) and additional.stance positions
     if addon.defaults and addon.defaults.profile and addon.defaults.profile.additional then

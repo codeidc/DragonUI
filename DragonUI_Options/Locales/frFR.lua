@@ -99,3 +99,10 @@ L["Show Combat Flash"] = "Afficher le Flash de Combat"
 L["Pulsing glow effect when entering combat. Works with all frame modes."] = "Effet de pulsation lumineuse en entrant en combat. Fonctionne avec tous les modes de cadre."
 L["Combat Flash Opacity"] = "Opacit\195\169 du Flash de Combat"
 L["Maximum opacity of the combat flash pulse effect."] = "Opacit\195\169 maximale de l'effet de pulsation du flash de combat."
+
+-- Castbar detach/reattach
+L["Castbar detached - positioned freely via Editor Mode"] = "Barre d'incantation detachee - position libre via le mode editeur"
+L["Castbar attached - follows Target frame"] = "Barre d'incantation attachee - suit le cadre Cible"
+L["Castbar attached - follows Focus frame"] = "Barre d'incantation attachee - suit le cadre Focus"
+L["Re-attach Castbar to Target"] = "Rattacher la barre d'incantation a la cible"
+L["Re-attach Castbar to Focus"] = "Rattacher la barre d'incantation au focus"

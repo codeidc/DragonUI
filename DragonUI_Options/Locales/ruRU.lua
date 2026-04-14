@@ -550,6 +550,11 @@ L["Reset focus castbar position to default"] = "Сбросить позицию 
 L["Player castbar position reset."] = "Позиция полосы заклинаний игрока сброшена."
 L["Target castbar position reset."] = "Позиция полосы заклинаний цели сброшена."
 L["Focus castbar position reset."] = "Позиция полосы заклинаний фокуса сброшена."
+L["Castbar detached - positioned freely via Editor Mode"] = "Полоса заклинаний откреплена - свободно позиционируется в режиме редактора"
+L["Castbar attached - follows Target frame"] = "Полоса заклинаний прикреплена - следует за рамкой цели"
+L["Castbar attached - follows Focus frame"] = "Полоса заклинаний прикреплена - следует за рамкой фокуса"
+L["Re-attach Castbar to Target"] = "Снова прикрепить полосу к цели"
+L["Re-attach Castbar to Focus"] = "Снова прикрепить полосу к фокусу"
 
 -- Width/height descriptions for target/focus
 L["Width of the target castbar"] = "Ширина полосы заклинаний цели"

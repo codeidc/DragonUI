@@ -38,3 +38,8 @@ L["Buttons"] = "按鈕"
 L["Main Bars"] = "主動作條"
 
 L["Copy Text"] = "複製文字"
+
+-- 編輯模式標籤
+L["TargetCastbar"] = "目標施法條"
+L["FocusCastbar"] = "焦點施法條"
+L["Right-click to reset"] = "右鍵重設"

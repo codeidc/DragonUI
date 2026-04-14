@@ -38,3 +38,8 @@ L["Buttons"] = "按钮"
 L["Main Bars"] = "主动作条"
 
 L["Copy Text"] = "复制文本"
+
+-- 编辑模式标签
+L["TargetCastbar"] = "目标施法条"
+L["FocusCastbar"] = "焦点施法条"
+L["Right-click to reset"] = "右键重置"

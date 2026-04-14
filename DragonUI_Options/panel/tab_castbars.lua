@@ -212,6 +212,28 @@ local function BuildTargetCastbar(scroll)
     end
 
     local s = C:AddSection(scroll, LO["Target Castbar"])
+
+    local isDetached = C:GetDBValue("castbar.target.override")
+    if isDetached then
+        C:AddDescription(s, "|cff1784d1- " .. LO["Castbar detached - positioned freely via Editor Mode"] .. "|r")
+    else
+        C:AddDescription(s, "|cffaaaaaa- " .. LO["Castbar attached - follows Target frame"] .. "|r")
+    end
+
+    C:AddButton(s, {
+        label = LO["Re-attach Castbar to Target"],
+        width = 220,
+        disabled = function()
+            return not C:GetDBValue("castbar.target.override")
+        end,
+        callback = function()
+            if addon.ResetTargetCastbarPosition then
+                addon.ResetTargetCastbarPosition()
+            end
+            Panel:SelectTab("castbars")
+        end,
+    })
+
     AddCastbarControls(s, "castbar.target", refresh, {
         sizeXMin = 50, sizeXMax = 400,
         sizeYMin = 5, sizeYMax = 50,
@@ -230,6 +252,28 @@ local function BuildFocusCastbar(scroll)
     end
 
     local s = C:AddSection(scroll, LO["Focus Castbar"])
+
+    local isDetached = C:GetDBValue("castbar.focus.override")
+    if isDetached then
+        C:AddDescription(s, "|cff1784d1- " .. LO["Castbar detached - positioned freely via Editor Mode"] .. "|r")
+    else
+        C:AddDescription(s, "|cffaaaaaa- " .. LO["Castbar attached - follows Focus frame"] .. "|r")
+    end
+
+    C:AddButton(s, {
+        label = LO["Re-attach Castbar to Focus"],
+        width = 220,
+        disabled = function()
+            return not C:GetDBValue("castbar.focus.override")
+        end,
+        callback = function()
+            if addon.ResetFocusCastbarPosition then
+                addon.ResetFocusCastbarPosition()
+            end
+            Panel:SelectTab("castbars")
+        end,
+    })
+
     AddCastbarControls(s, "castbar.focus", refresh, {
         sizeXMin = 50, sizeXMax = 400,
         sizeYMin = 5, sizeYMax = 50,

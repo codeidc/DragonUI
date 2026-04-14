@@ -599,6 +599,200 @@ local function NudgeSelectedFrame(dx, dy)
     UpdateEditorPanelCoords()
 end
 
+local function GetSelectedEditableFrameData()
+    if not selectedEditorFrame or not addon.EditableFrames then
+        return nil, nil
+    end
+
+    for name, frameData in pairs(addon.EditableFrames) do
+        if frameData.frame == selectedEditorFrame then
+            return name, frameData
+        end
+    end
+
+    return nil, nil
+end
+
+local function ResetDetachedUnitframeToProfileDefaults(unitKey)
+    local defaults = addon.defaults and addon.defaults.profile
+    local profile = addon.db and addon.db.profile
+
+    if not (defaults and profile and defaults.unitframe and defaults.unitframe[unitKey]) then
+        return false
+    end
+
+    profile.unitframe = profile.unitframe or {}
+    profile.unitframe[unitKey] = addon.DeepCopy(defaults.unitframe[unitKey], {})
+
+    if defaults.widgets and defaults.widgets[unitKey] then
+        profile.widgets = profile.widgets or {}
+        profile.widgets[unitKey] = addon.DeepCopy(defaults.widgets[unitKey], {})
+    end
+
+    return true
+end
+
+local function GetDetachedResetActionForSelection()
+    if not (addon and addon.db and addon.db.profile) then
+        return nil, nil
+    end
+
+    local frameName, frameData = GetSelectedEditableFrameData()
+    if not frameName then
+        return nil, nil
+    end
+
+    if frameName == "TargetCastbar" then
+        local cfg = addon.db.profile.castbar and addon.db.profile.castbar.target
+        if cfg and cfg.override and addon.ResetTargetCastbarPosition then
+            return function()
+                addon.ResetTargetCastbarPosition()
+            end, frameData
+        end
+    elseif frameName == "FocusCastbar" then
+        local cfg = addon.db.profile.castbar and addon.db.profile.castbar.focus
+        if cfg and cfg.override and addon.ResetFocusCastbarPosition then
+            return function()
+                addon.ResetFocusCastbarPosition()
+            end, frameData
+        end
+    elseif frameName == "tot" then
+        local cfg = addon.db.profile.unitframe and addon.db.profile.unitframe.tot
+        if cfg and cfg.override and addon.TargetOfTarget and addon.TargetOfTarget.Refresh then
+            return function()
+                if ResetDetachedUnitframeToProfileDefaults("tot") then
+                    addon.TargetOfTarget.Refresh()
+                end
+            end, frameData
+        end
+    elseif frameName == "fot" then
+        local cfg = addon.db.profile.unitframe and addon.db.profile.unitframe.fot
+        if cfg and cfg.override and addon.TargetOfFocus and addon.TargetOfFocus.Refresh then
+            return function()
+                if ResetDetachedUnitframeToProfileDefaults("fot") then
+                    addon.TargetOfFocus.Refresh()
+                end
+            end, frameData
+        end
+    end
+
+    return nil, frameData
+end
+
+local function SetEditorPanelExpanded(expanded)
+    if not editorPanel then
+        return
+    end
+
+    local compactHeight = 80
+    local expandedHeight = 104
+    local targetHeight = expanded and expandedHeight or compactHeight
+    if editorPanel:GetHeight() ~= targetHeight then
+        editorPanel:SetHeight(targetHeight)
+    end
+end
+
+local function UpdateEditorPanelResetButton()
+    if not editorPanel or not editorPanel.resetSelectedButton then
+        return
+    end
+
+    local action = GetDetachedResetActionForSelection()
+    if action then
+        editorPanel.resetSelectedButton._dragonuiAction = action
+        editorPanel.resetSelectedButton:Show()
+        SetEditorPanelExpanded(true)
+    else
+        editorPanel.resetSelectedButton._dragonuiAction = nil
+        editorPanel.resetSelectedButton:Hide()
+        SetEditorPanelExpanded(false)
+    end
+end
+
+local function StyleEditorPanelButton(button)
+    if not button or button._dragonStyled then
+        return
+    end
+
+    button._dragonStyled = true
+
+    if button.GetNumRegions then
+        for i = 1, button:GetNumRegions() do
+            local region = select(i, button:GetRegions())
+            if region and region.IsObjectType and region:IsObjectType("Texture") then
+                region:SetTexture(nil)
+                region:SetAlpha(0)
+                region:Hide()
+            end
+        end
+    end
+
+    local name = button:GetName()
+    if name then
+        for _, suffix in ipairs({"Left", "Middle", "Right", "left", "middle", "right"}) do
+            local tex = _G[name .. suffix]
+            if tex and tex.SetTexture then
+                tex:SetTexture(nil)
+                tex:SetAlpha(0)
+                tex:Hide()
+            end
+        end
+    end
+
+    button:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        tile = false,
+        edgeSize = 1,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 },
+    })
+    button:SetBackdropColor(0.16, 0.16, 0.18, 1)
+    button:SetBackdropBorderColor(0.09, 0.52, 0.82, 0.95)
+
+    if button:GetNormalTexture() then button:GetNormalTexture():SetTexture(nil) end
+    if button:GetPushedTexture() then button:GetPushedTexture():SetTexture(nil) end
+    if button:GetHighlightTexture() then button:GetHighlightTexture():SetTexture(nil) end
+    if button:GetDisabledTexture() then button:GetDisabledTexture():SetTexture(nil) end
+
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
+    highlight:SetVertexColor(0.09, 0.52, 0.82, 0.25)
+    highlight:SetAllPoints()
+
+    local fontString = button:GetFontString()
+    if fontString then
+        fontString:SetTextColor(0.95, 0.95, 0.95)
+    end
+
+    button:HookScript("OnMouseDown", function(self)
+        self:SetBackdropColor(0.12, 0.12, 0.14, 1)
+    end)
+
+    button:HookScript("OnMouseUp", function(self)
+        if self:IsEnabled() then
+            self:SetBackdropColor(0.16, 0.16, 0.18, 1)
+        end
+    end)
+
+    button:HookScript("OnEnable", function(self)
+        self:SetBackdropColor(0.16, 0.16, 0.18, 1)
+        self:SetBackdropBorderColor(0.09, 0.52, 0.82, 0.95)
+        local text = self:GetFontString()
+        if text then
+            text:SetTextColor(0.95, 0.95, 0.95)
+        end
+    end)
+
+    button:HookScript("OnDisable", function(self)
+        self:SetBackdropColor(0.12, 0.12, 0.14, 0.8)
+        self:SetBackdropBorderColor(0.09, 0.52, 0.82, 0.45)
+        local text = self:GetFontString()
+        if text then
+            text:SetTextColor(0.55, 0.55, 0.55)
+        end
+    end)
+end
+
 -- Create the floating control panel (called once, lazily)
 local function CreateEditorControlPanel()
     if editorPanel then return editorPanel end
@@ -663,6 +857,7 @@ local function CreateEditorControlPanel()
     xMinus:SetPoint("LEFT", xValue, "RIGHT", 8, 0)
     xMinus:SetText("<")
     xMinus:SetFrameLevel(panel:GetFrameLevel() + 5)
+    StyleEditorPanelButton(xMinus)
     xMinus:SetScript("OnClick", function() NudgeSelectedFrame(-1, 0) end)
 
     local xPlus = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
@@ -670,6 +865,7 @@ local function CreateEditorControlPanel()
     xPlus:SetPoint("LEFT", xMinus, "RIGHT", 4, 0)
     xPlus:SetText(">")
     xPlus:SetFrameLevel(panel:GetFrameLevel() + 5)
+    StyleEditorPanelButton(xPlus)
     xPlus:SetScript("OnClick", function() NudgeSelectedFrame(1, 0) end)
 
     -- Y row
@@ -704,6 +900,7 @@ local function CreateEditorControlPanel()
     yMinus:SetPoint("LEFT", yValue, "RIGHT", 8, 0)
     yMinus:SetText("v")
     yMinus:SetFrameLevel(panel:GetFrameLevel() + 5)
+    StyleEditorPanelButton(yMinus)
     yMinus:SetScript("OnClick", function() NudgeSelectedFrame(0, -1) end)
 
     local yPlus = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
@@ -711,13 +908,45 @@ local function CreateEditorControlPanel()
     yPlus:SetPoint("LEFT", yMinus, "RIGHT", 4, 0)
     yPlus:SetText("^")
     yPlus:SetFrameLevel(panel:GetFrameLevel() + 5)
+    StyleEditorPanelButton(yPlus)
     yPlus:SetScript("OnClick", function() NudgeSelectedFrame(0, 1) end)
+
+    local resetSelectedButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    resetSelectedButton:SetSize(160, 20)
+    resetSelectedButton:SetPoint("BOTTOM", panel, "BOTTOM", 0, 6)
+    resetSelectedButton:SetText((addon.L and addon.L["Right-click to reset"]) or "Reset")
+    resetSelectedButton:SetFrameLevel(panel:GetFrameLevel() + 5)
+    StyleEditorPanelButton(resetSelectedButton)
+    resetSelectedButton:SetScript("OnClick", function(self)
+        local action, frameData = GetDetachedResetActionForSelection()
+        if not action then
+            self:Hide()
+            return
+        end
+
+        if selectedEditorFrame then
+            selectedEditorFrame.DragonUI_WasDragged = nil
+            selectedEditorFrame.DragonUI_WasAdjustedByEditor = nil
+        end
+
+        action()
+
+        if frameData and frameData.showTest then
+            frameData.showTest()
+        end
+
+        UpdateEditorPanelResetButton()
+        UpdateEditorPanelCoords()
+    end)
+    resetSelectedButton:Hide()
+    panel.resetSelectedButton = resetSelectedButton
 
     -- Continuous coordinate polling while the panel is visible.
     -- This is simpler and more reliable than per-frame OnUpdate scripts
     -- since it works for every frame type (CreateUIFrame, lootroll, quest, etc.)
     panel:SetScript("OnUpdate", function()
         UpdateEditorPanelCoords()
+        UpdateEditorPanelResetButton()
     end)
 
     panel:Hide()
@@ -782,6 +1011,7 @@ function addon.SelectEditorFrame(frame)
     end
     panel.nameLabel:SetText(displayName or "Frame")
     UpdateEditorPanelCoords()
+    UpdateEditorPanelResetButton()
     panel:Show()
 end
 
@@ -802,6 +1032,7 @@ function addon.DeselectEditorFrame()
         editorPanel.nameLabel:SetText("\226\128\148")
         editorPanel.xValue:SetText("\226\128\148")
         editorPanel.yValue:SetText("\226\128\148")
+        UpdateEditorPanelResetButton()
     end
 end
 

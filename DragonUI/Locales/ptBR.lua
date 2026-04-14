@@ -38,3 +38,8 @@ L["Buttons"] = "Botões"
 L["Main Bars"] = "Barras principais"
 
 L["Copy Text"] = "Copiar texto"
+
+-- Labels do modo editor
+L["TargetCastbar"] = "Barra de lançamento do Alvo"
+L["FocusCastbar"] = "Barra de lançamento do Foco"
+L["Right-click to reset"] = "Clique com o botão direito para redefinir"

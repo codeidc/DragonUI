@@ -66,6 +66,16 @@ local defaults = {
                 posX = 0,
                 posY = 200
             },
+            targetCastbar = {
+                anchor = "CENTER",
+                posX = 0,
+                posY = 0
+            },
+            focusCastbar = {
+                anchor = "CENTER",
+                posX = 0,
+                posY = 0
+            },
 
             mainbar = {
                 anchor = "BOTTOM",
@@ -395,6 +405,7 @@ local defaults = {
             -- TARGET CASTBAR SETTINGS
             target = {
                 enabled = true,
+                override = false,
                 scale = 1,
                 x_position = 0,
                 y_position = 0,
@@ -416,6 +427,7 @@ local defaults = {
             -- FOCUS CASTBAR SETTINGS
             focus = {
                 enabled = true,
+                override = false,
                 scale = 1,
                 x_position = 0,
                 y_position = 0,
