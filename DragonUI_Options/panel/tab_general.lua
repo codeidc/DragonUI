@@ -373,7 +373,7 @@ local function BuildGeneralTab(scroll)
     -- ====================================================================
     local about = C:AddSection(scroll, LO["About"])
 
-    C:AddLabel(about, "|cff1784d1" .. LO["DragonUI"] .. " v2.4.1|r")
+    C:AddLabel(about, "|cff1784d1" .. LO["DragonUI"] .. " v2.5|r")
     C:AddDescription(about, LO["Bringing the retail WoW look to 3.3.5a, inspired by Dragonflight UI."])
     C:AddSpacer(about)
     C:AddDescription(about, LO["Created and maintained by Neticsoul, with community contributions."])
