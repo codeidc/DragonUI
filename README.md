@@ -86,10 +86,10 @@
 
 ## ⚠️ Known Issues
 
-- Party/raid role icons (DPS, Healer, Tank) may be lost after `/reload` during combat in Dungeon Finder groups.
-- In single-line tooltips, the text may overlap the health bar.
-- Party and raid scenarios still being validated with broader real-world testing.
-- Some third-party addon paths may require manual module disabling.
+- Party/raid role icons (DPS, Healer, Tank) may be lost after `/reload` in Dungeon Finder groups.
+- Single-line tooltips show text overlapping the health bar.
+- Party and raid scenarios are still being validated.
+- Some third-party addon setups may require manual module disabling.
 - Found a bug? [Open an issue](https://github.com/NeticSoul/DragonUI/issues).
 
 ## 🙏 Credits And References
