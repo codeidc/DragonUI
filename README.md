@@ -26,7 +26,7 @@
 
 | Method | Link |
 |--------|------|
-| **Latest stable release** | [Download v2.5](https://github.com/NeticSoul/DragonUI/releases/latest) |
+| **Latest stable release** | [Download v2.5](https://github.com/NeticSoul/DragonUI/releases/download/v2.5/DragonUI-2.5.zip) |
 | **Cutting-edge (main branch)** | [Download ZIP](https://github.com/NeticSoul/DragonUI/archive/refs/heads/main.zip) |
 
 > The main branch always contains the most recent features and fixes. Releases are periodic snapshots that have been tested more thoroughly.
