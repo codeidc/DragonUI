@@ -36,8 +36,8 @@
    - `DragonUI`
    - `DragonUI_Options`
 4. **Copy both** into your WoW client's `Interface\AddOns\` directory.
-5. **Restart the game** if you had it open. New addons are only detected on startup.
-6. Open settings with `/dragonui` or the button in the Escape menu.
+5. **Start the game** and make sure `DragonUI` and `DragonUI_Options` are enabled in the AddOns list.
+6. Open settings with `/dui` or the button in the Escape menu.
 
 > **Upgrading?** Just overwrite the old folders. Your settings are preserved automatically.
 >
