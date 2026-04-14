@@ -47,24 +47,40 @@
 
 ## ✨ Features
 
-- 🧩 Modular system: enable or disable any major UI component independently. Mix with other addons.
-- 🎯 Custom action bars with configurable grid layouts, visibility rules, and button spacing.
-- 💚 Reworked unit frames for player, target, focus, party, pet, boss, ToT, and ToF, with elite dragon decoration, class portrait icons, and fat health bar mode.
-- 🩹 Unit Frame Layers: heal prediction, absorb shields, and animated health loss overlays.
-- 🖼️ HD textures for player frame (normal mode), target and focus name backgrounds. More HD assets coming in future updates.
-- 📊 XP & Reputation bars with Dragonflight and RetailUI styles, independently movable.
-- 🎒 Auto-sort for bags and bank with slot locking, plus integrated Combuctor for unified inventory browsing.
-- 🗺️ Custom minimap with addon icon compatibility (LibDBIcon, Questie, SexyMap).
+### Core UI
+
+- 🧩 Modular system: enable or disable any major UI component independently.
+- ⚙️ Custom configuration panel with profile support and per-module controls.
 - ⌨️ Editor Mode: move and reposition nearly every UI element, with live X/Y coordinates and pixel-by-pixel position controls.
 - 📋 Layout Presets: save, load, duplicate, delete, import, and export full UI layouts and addon settings using shareable export codes.
-- 🔮 Castbars: custom castbars for player, target, and focus, all movable from Editor Mode, with simple and detailed display modes, plus a built-in latency indicator on the player castbar.
-- 💬 Chat enhancements: dedicated options panel with style skins, fade sync, movable editbox with adjustable opacity, URL detection, chat copy, vanilla chat buttons with hover visibility, and `/tt` whisper command.
+- 🌍 Localization for English, Spanish (ES/MX), German, Korean, Russian, Simplified Chinese, and Traditional Chinese.
+
+### Frames And Bars
+
+- 🎯 Action bars with configurable grid layouts, visibility rules, and button spacing.
+- 💚 Unit frames for player, target, focus, party, pet, boss, ToT, and ToF, with elite dragon decoration, class portrait icons, and fat health bar mode.
+- 🩹 Unit Frame Layers: heal prediction, absorb shields, and animated health loss overlays.
+- 🔮 Castbars: custom castbars for player, target, and focus, with simple and detailed display modes, plus a built-in latency indicator on the player castbar.
+- 📊 XP & Reputation bars with Dragonflight and RetailUI styles, independently movable.
+
+### Visual Style
+
+- 🖼️ HD textures for player frame (normal mode), target and focus name backgrounds. More HD assets coming in future updates.
 - 🌙 Dark Mode with three intensity presets and custom color picker.
 - ✨ Glow effects with separate combat and rest status controls and opacity slider.
+
+### Inventory And Navigation
+
+- 🎒 Auto-sort for bags and bank with slot locking, plus integrated Combuctor for unified inventory browsing.
+- 🗺️ Custom Retail-style minimap (compatible with SexyMap).
+
+### Utility And Quality Of Life
+
+- 💬 Chat enhancements: style skins, fade sync, movable editbox with adjustable opacity, URL detection, chat copy, vanilla chat buttons with hover visibility, and `/tt` whisper command.
 - 💎 Item quality borders, enhanced tooltips with class-colored borders, and range indicator.
 - ⌨️ Easy-to-use keybinding mode on supported buttons.
-- ⚙️ Custom dark-themed configuration panel with profile support and per-module controls.
-- 🌍 Localization for English, Spanish (ES/MX), German, Korean, Russian, Simplified Chinese, and Traditional Chinese.
+
+And much more in the options panel.
 
 <!-- TODO: Add 2-3 screenshots here showing:
      1. The main UI in gameplay
