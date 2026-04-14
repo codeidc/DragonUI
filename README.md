@@ -4,115 +4,134 @@
 
 ![Interface Version](https://img.shields.io/badge/Interface-30300-blue)
 ![WoW Version](https://img.shields.io/badge/WoW-3.3.5a-orange)
-![Version](https://img.shields.io/badge/Version-2.4.1-green)
+![Version](https://img.shields.io/badge/Version-2.5-green)
+![License](https://img.shields.io/badge/License-MIT-yellow)
+[![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?logo=ko-fi)](https://ko-fi.com/neticsoul)
 
-**DragonUI is a modular UI addon for World of Warcraft 3.3.5a (Wrath of the Lich King), inspired by Dragonflight UI Classic.**
+**A modular UI addon for World of Warcraft 3.3.5a (Wrath of the Lich King), inspired by Dragonflight UI Classic.**
 
 </div>
 
 ---
 
-## 📌 Project Status
+<!-- TODO: Add a screenshot or GIF showing the full UI in action here -->
 
-DragonUI is in active development. While already in an advanced state, occasional bugs may occur.
+## 📥 Download
 
-> 📥 **Get the latest version:** [Download from main branch](https://github.com/NeticSoul/DragonUI/archive/refs/heads/main.zip) for the most up-to-date features and fixes.
+| Method | Link |
+|--------|------|
+| **Latest stable release** | [Download v2.5](https://github.com/NeticSoul/DragonUI/releases/latest) |
+| **Cutting-edge (main branch)** | [Download ZIP](https://github.com/NeticSoul/DragonUI/archive/refs/heads/main.zip) |
 
-## ✨ Features
-
-- 🧩 Modular system: enable or disable any major UI component independently.
-- 🎯 Custom action bars with configurable grid layouts, visibility rules, and button spacing.
-- 💚 Reworked unit frames for player, target, focus, party, pet, boss, ToT, and ToF, with elite dragon decoration, class portrait icons, and fat health bar modes.
-- 🩹 Unit Frame Layers: heal prediction, absorb shields, and animated health loss overlays.
-- 📊 XP & Reputation bars with Dragonflight and RetailUI styles, independently movable.
-- 🎒 Auto-sort for bags and bank with slot locking, plus integrated Combuctor for unified inventory browsing.
-- 🗺️ Custom minimap, micro menu, cast bars, buff frame, quest tracker, and more.
-- ⌨️ Editor Mode: move and reposition nearly every UI element, with live X/Y coordinates and pixel-by-pixel position controls.
-- 📋 Layout Presets: save, load, duplicate, delete, import, and export full UI layouts and addon settings using shareable export codes.
-- 💬 Chat enhancements: moveable editbox, URL detection, chat copy, and `/tt` whisper command.
-- 🌙 Dark mode with three intensity presets and custom color picker.
-- 💎 Item quality borders, enhanced tooltips, range indicator, and latency indicator.
-- ⌨️ Easy-to-use keybinding mode on supported buttons.
-- ⚙️ Custom dark-themed configuration panel with profile support and per-module controls.
-- 🌍 Localization for English, Spanish, Mexican Spanish, German, Korean, Russian, Simplified Chinese, and Traditional Chinese.
+> The main branch always contains the most recent features and fixes. Releases are periodic snapshots that have been tested more thoroughly.
 
 ## 📦 Installation
 
-1. Download the [latest main branch archive](https://github.com/NeticSoul/DragonUI/archive/refs/heads/main.zip).
-2. Extract the archive. You'll get a `DragonUI-main` folder.
-3. Inside `DragonUI-main`, find the `DragonUI` and `DragonUI_Options` folders.
-4. Copy both folders into your client's `Interface\AddOns\` directory.
+<details>
+<summary><strong>Step-by-step guide (click to expand)</strong></summary>
 
-> 💡 **Clean install:** delete `WTF\Account\<AccountName>\` to wipe all saved settings for all addons on that account.
+1. **Download** the ZIP from one of the links above.
+2. **Extract** the archive. You'll see a folder like `DragonUI-main` or `DragonUI-2.5`.
+3. Inside that folder, find these two folders:
+   - `DragonUI`
+   - `DragonUI_Options`
+4. **Copy both** into your WoW client's `Interface\AddOns\` directory.
+5. **Restart the game** if you had it open. New addons are only detected on startup.
+6. Open settings with `/dragonui` or the button in the Escape menu.
+
+> **Upgrading?** Just overwrite the old folders. Your settings are preserved automatically.
+>
+> **Clean install?** Delete `WTF\Account\<YourAccount>\SavedVariables\DragonUI*` to reset all DragonUI settings.
+
+</details>
+
+## ✨ Features
+
+- 🧩 Modular system: enable or disable any major UI component independently. Mix with other addons.
+- 🎯 Custom action bars with configurable grid layouts, visibility rules, and button spacing.
+- 💚 Reworked unit frames for player, target, focus, party, pet, boss, ToT, and ToF, with elite dragon decoration, class portrait icons, and fat health bar mode.
+- 🩹 Unit Frame Layers: heal prediction, absorb shields, and animated health loss overlays.
+- 🖼️ HD textures for player frame (normal mode), target and focus name backgrounds. More HD assets coming in future updates.
+- 📊 XP & Reputation bars with Dragonflight and RetailUI styles, independently movable.
+- 🎒 Auto-sort for bags and bank with slot locking, plus integrated Combuctor for unified inventory browsing.
+- 🗺️ Custom minimap with addon icon compatibility (LibDBIcon, Questie, SexyMap).
+- ⌨️ Editor Mode: move and reposition nearly every UI element, with live X/Y coordinates and pixel-by-pixel position controls.
+- 📋 Layout Presets: save, load, duplicate, delete, import, and export full UI layouts and addon settings using shareable export codes.
+- 🔮 Castbars: custom castbars for player, target, and focus, all movable from Editor Mode, with simple and detailed display modes, plus a built-in latency indicator on the player castbar.
+- 💬 Chat enhancements: dedicated options panel with style skins, fade sync, movable editbox with adjustable opacity, URL detection, chat copy, vanilla chat buttons with hover visibility, and `/tt` whisper command.
+- 🌙 Dark Mode with three intensity presets and custom color picker.
+- ✨ Glow effects with separate combat and rest status controls and opacity slider.
+- 💎 Item quality borders, enhanced tooltips with class-colored borders, and range indicator.
+- ⌨️ Easy-to-use keybinding mode on supported buttons.
+- ⚙️ Custom dark-themed configuration panel with profile support and per-module controls.
+- 🌍 Localization for English, Spanish (ES/MX), German, Korean, Russian, Simplified Chinese, and Traditional Chinese.
+
+<!-- TODO: Add 2-3 screenshots here showing:
+     1. The main UI in gameplay
+     2. The options panel
+     3. Editor mode with overlays visible
+-->
 
 ## 🔧 Commands
 
 | Command | Action |
-|---|---|
-| `/dragonui`, `/dui` or `/pi` | Opens the configuration UI |
-| `/dragonui edit` | Toggles editor mode |
-| `/dragonui help` | Shows available commands |
-| `/duicomp` | Opens compatibility commands |
-| `/sort` | Sorts your bags |
+|---------|--------|
+| `/dragonui` or `/dui` | Open the configuration panel |
+| `/dragonui edit` | Toggle Editor Mode |
+| `/dragonui help` | Show all available commands |
+| `/duicomp` | Compatibility diagnostics |
+| `/sort` | Sort your bags |
 | `/tt <message>` | Whisper your current target |
-| `/rl` | Reloads the UI |
+| `/rl` | Reload the UI |
 
 ## ⚠️ Known Issues
 
-- Party and raid role icons (DPS, Healer, Tank) may be lost after reloading the UI during combat in dungeons joined via the Dungeon Finder.
-- Party and raid scenarios still need broader real-world validation.
-- Some compatibility paths with third-party addons may still require manual module disablement or extra cleanup.
-- Found a bug or want to suggest a feature? Let me know in the [issues](https://github.com/NeticSoul/DragonUI/issues).
+- Party/raid role icons (DPS, Healer, Tank) may be lost after `/reload` during combat in Dungeon Finder groups.
+- In single-line tooltips, the text may overlap the health bar.
+- Party and raid scenarios still being validated with broader real-world testing.
+- Some third-party addon paths may require manual module disabling.
+- Found a bug? [Open an issue](https://github.com/NeticSoul/DragonUI/issues).
 
 ## 🙏 Credits And References
 
-DragonUI combines original work with adapted ideas, ports, and implementation references from multiple addon authors and projects.
+DragonUI builds on original work and adapted ideas from these addon authors and projects:
 
-- [Dragonflight UI (Classic)](https://github.com/Karl-HeinzSchneider) by Karl-HeinzSchneider
-- [pretty_actionbar and pretty_minimap](https://github.com/s0h2x) by s0h2x
-- [RetailUI](https://github.com/a3st) by a3st (Dmitriy)
-- [KPack](https://github.com/bkader/KPack) by bkader
-- [Combuctor](https://github.com/Jaliborc) by Jaliborc
-- [BankStack](https://github.com/kemayo/) by kemayo
-- [UnitFrameLayers](https://github.com/RomanSpector) by RomanSpector
-- [oGlow](https://github.com/haste) by haste
-- [ElvUI-WotLK](https://github.com/ElvUI-WotLK/) as a pattern reference in selected areas.
-- [CrimsonHollow](https://github.com/CrimsonHollow) for Fat Health Bar contribution
-- [Quartz](https://github.com/Nevcairiel/Quartz) by Hendrik Leppkes - latency indicator concept inspiration
-- [RovBot](https://github.com/RovxBot) for action bar grid/preset system
-- [Raz0r](https://github.com/Raz0r1337) for German localization
-- [nadugi](https://github.com/nadugi) for Korean localization
-- Did I forget you...? Please [let me know](https://github.com/NeticSoul/DragonUI/issues).
+| Project | Author | Contribution |
+|---------|--------|-------------|
+| [Dragonflight UI (Classic)](https://github.com/Karl-HeinzSchneider) | Karl-HeinzSchneider | Primary design reference |
+| [pretty_actionbar / pretty_minimap](https://github.com/s0h2x) | s0h2x | Action bar and minimap patterns |
+| [RetailUI](https://github.com/a3st) | a3st (Dmitriy) | UI styling reference |
+| [KPack](https://github.com/bkader/KPack) | bkader | Utility patterns |
+| [Combuctor](https://github.com/Jaliborc) | Jaliborc | Bag integration |
+| [BankStack](https://github.com/kemayo/) | kemayo | Bank sort logic |
+| [UnitFrameLayers](https://github.com/RomanSpector) | RomanSpector | Heal/absorb overlay reference |
+| [oGlow](https://github.com/haste) | haste | Item quality border reference |
+| [ElvUI-WotLK](https://github.com/ElvUI-WotLK/) | ElvUI team | Pattern reference |
+| [Quartz](https://github.com/Nevcairiel/Quartz) | Hendrik Leppkes | Latency indicator concept |
+| [CrimsonHollow](https://github.com/CrimsonHollow) | CrimsonHollow | Fat Health Bar contribution |
+| [RovBot](https://github.com/RovxBot) | RovBot | Action bar grid/preset system |
+| [Raz0r](https://github.com/Raz0r1337) | Raz0r | German localization |
+| [nadugi](https://github.com/nadugi) | nadugi | Korean localization |
+
+Missing from the list? [Let me know](https://github.com/NeticSoul/DragonUI/issues).
 
 ## 💛 Special Thanks
 
-- Everyone who tested early builds, reported bugs, and helped shape the addon into what it is today.
-- Translators who contributed localizations and caught string issues across different clients.
-- The addon authors listed in Credits, whose open work made this project possible.
-- Players who took the time to open issues, share screenshots, and suggest improvements.
+- Everyone who tested early builds, reported bugs, and helped shape this addon.
+- Translators who contributed localizations across different clients.
+- The open-source addon community whose work made this project possible.
 
-## 📜 Legal And Licensing Summary
+## 📜 License
 
-- DragonUI code is released under the [MIT License](LICENSE).
-- Bundled third-party components have their own licenses. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`LICENSES/`](LICENSES/).
+DragonUI is released under the [MIT License](LICENSE). Bundled third-party components have their own licenses - see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`LICENSES/`](LICENSES/).
 
 ## 📎 Disclaimer
 
-DragonUI is a free, fan-made addon created for the community.
-
-No content is sold and no in-game advantages are provided in exchange for money.
-
-Donations, if any, are entirely voluntary and go towards supporting development and maintenance.
-
-DragonUI is not affiliated with, endorsed by, or sponsored by Blizzard Entertainment. World of Warcraft and all related trademarks are the property of Blizzard Entertainment.
+DragonUI is a free, fan-made addon. No content is sold and no in-game advantages are provided. Donations are entirely voluntary. Not affiliated with or endorsed by Blizzard Entertainment.
 
 ## ☕ Support The Project
 
-DragonUI will remain free to use.
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/neticsoul)
 
-Support is voluntary and goes towards maintenance, testing, and continued development.
-
-- [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/neticsoul)
-
-- 🪙 Bitcoin: `bc1q8yavz8857lzdfttas584892gf82y0u3wdfjz0a`
+🪙 Bitcoin: `bc1q8yavz8857lzdfttas584892gf82y0u3wdfjz0a`
 
