@@ -444,6 +444,8 @@ local function DarkenUnitFrameBorders(tint)
     if dragonTargetBorder then DarkenTexture(dragonTargetBorder, tint) end
     local dragonTargetBG = _G["DragonUI_TargetBG"]
     if dragonTargetBG then DarkenTexture(dragonTargetBG, tint) end
+    local dragonTargetElite = _G["DragonUI_TargetElite"]
+    if dragonTargetElite then DarkenTexture(dragonTargetElite, tint) end
 
     DarkenFrameBorderTextures(_G["TargetFrameToT"])
 
@@ -462,6 +464,8 @@ local function DarkenUnitFrameBorders(tint)
     if dragonFocusBorder then DarkenTexture(dragonFocusBorder, tint) end
     local dragonFocusBG = _G["DragonUI_FocusBG"]
     if dragonFocusBG then DarkenTexture(dragonFocusBG, tint) end
+    local dragonFocusElite = _G["DragonUI_FocusElite"]
+    if dragonFocusElite then DarkenTexture(dragonFocusElite, tint) end
 
     DarkenFrameBorderTextures(_G["FocusFrameToT"])
 
