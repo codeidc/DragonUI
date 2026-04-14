@@ -20,7 +20,6 @@ mcp/
 .env/
 memories/
 presets/
-.continue/
 
 # Local test/debug scripts
 test_*.lua
