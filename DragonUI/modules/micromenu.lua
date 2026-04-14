@@ -1319,6 +1319,8 @@ local function ApplyMicromenuSystem()
     KeyRingButton:SetParent(_G.CharacterBag3Slot);
 
     function MainMenuMicroButtonMixin:bagbuttons_setup()
+        MicromenuModule.hooks = MicromenuModule.hooks or {}
+
         -- Setup main backpack button
         MainMenuBarBackpackButton:SetSize(50, 50)
         MainMenuBarBackpackButton:SetNormalTexture(nil)
@@ -1358,13 +1360,16 @@ local function ApplyMicromenuSystem()
             end
         end
 
-        hooksecurefunc("ToggleKeyRing", SyncKeyRingButton)
-        hooksecurefunc("CloseAllBags", function()
-            if KeyRingButton then
-                KeyRingButton:SetChecked(false)
-            end
-        end)
-        hooksecurefunc("ContainerFrame_OnHide", SyncKeyRingButton)
+        if not MicromenuModule.hooks.KeyRingSyncHooks then
+            hooksecurefunc("ToggleKeyRing", SyncKeyRingButton)
+            hooksecurefunc("CloseAllBags", function()
+                if KeyRingButton then
+                    KeyRingButton:SetChecked(false)
+                end
+            end)
+            hooksecurefunc("ContainerFrame_OnHide", SyncKeyRingButton)
+            MicromenuModule.hooks.KeyRingSyncHooks = true
+        end
 
         local keyringIcon = KeyRingButtonIconTexture
         if keyringIcon then

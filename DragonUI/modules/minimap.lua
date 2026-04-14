@@ -943,22 +943,47 @@ local function CreateMinimapBorderFrame(width, height)
     local minimapBorderFrame = CreateFrame('Frame', UIParent)
     minimapBorderFrame:SetSize(width, height)
     minimapBorderFrame._duiHeavyUpdateElapsed = 0
+    minimapBorderFrame._duiRotationElapsed = 0
+    minimapBorderFrame._duiLastRotateEnabled = nil
+    minimapBorderFrame._duiLastAppliedAngle = nil
     minimapBorderFrame:SetScript("OnUpdate", function(self, elapsed)
-        local facing = GetPlayerFacing()
-        if not facing then return end
-        local angle = -facing
         local rotateEnabled = GetCVar("rotateMinimap") == "1"
+        local rotationInterval = rotateEnabled and 0.016 or 0.05
 
-        if Minimap and Minimap.Circle then
-            if rotateEnabled then
-                ApplyTextureRotation(Minimap.Circle, angle)
-            else
-                if Minimap.Circle.SetRotation then
-                    Minimap.Circle:SetRotation(0)
-                else
-                    Minimap.Circle:SetTexCoord(0, 1, 0, 1)
+        self._duiRotationElapsed = self._duiRotationElapsed + elapsed
+        if self._duiRotationElapsed >= rotationInterval then
+            self._duiRotationElapsed = 0
+
+            local facing = GetPlayerFacing()
+            if Minimap and Minimap.Circle and facing then
+                if rotateEnabled then
+                    local desiredAngle = -facing
+                    local shouldApply = true
+
+                    if self._duiLastAppliedAngle then
+                        local delta = math.abs(desiredAngle - self._duiLastAppliedAngle)
+                        if delta > math.pi then
+                            delta = (2 * math.pi) - delta
+                        end
+                        -- Skip tiny angle changes to keep CPU stable while preserving smoothness.
+                        shouldApply = delta >= 0.0025
+                    end
+
+                    if shouldApply then
+                        ApplyTextureRotation(Minimap.Circle, desiredAngle)
+                        self._duiLastAppliedAngle = desiredAngle
+                    end
+                elseif self._duiLastRotateEnabled then
+                    if Minimap.Circle.SetRotation then
+                        Minimap.Circle:SetRotation(0)
+                    else
+                        Minimap.Circle:SetTexCoord(0, 1, 0, 1)
+                    end
+                    self._duiLastAppliedAngle = nil
                 end
             end
+
+            self._duiLastRotateEnabled = rotateEnabled
         end
 
         self._duiHeavyUpdateElapsed = self._duiHeavyUpdateElapsed + elapsed
@@ -970,17 +995,13 @@ local function CreateMinimapBorderFrame(width, height)
             UpdateIndoorRotateScale()
             UpdateMinimapCircleSize()
         end
-
-        if self.border then
-            self.border:SetAlpha(0)
-            ApplyTextureRotation(self.border, 0)
-        end
     end)
 
     do
         local texture = minimapBorderFrame:CreateTexture(nil, "BORDER")
         texture:SetAllPoints(minimapBorderFrame)
         texture:SetTexture("Interface\\AddOns\\DragonUI\\Textures\\Minimap\\MinimapBorder.blp")
+        texture:SetAlpha(0)
 
         minimapBorderFrame.border = texture
     end
