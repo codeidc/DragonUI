@@ -4,8 +4,8 @@
 
 ![Interface Version](https://img.shields.io/badge/Interface-30300-blue)
 ![WoW Version](https://img.shields.io/badge/WoW-3.3.5a-orange)
-![Version](https://img.shields.io/badge/Version-2.5-green)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+[![Version](https://img.shields.io/badge/Version-2.5-green)](https://github.com/NeticSoul/DragonUI/releases/tag/v2.5)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?logo=ko-fi)](https://ko-fi.com/neticsoul)
 
 **A modular UI addon for World of Warcraft 3.3.5a (Wrath of the Lich King), inspired by Dragonflight UI Classic.**
