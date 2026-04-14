@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?logo=ko-fi)](https://ko-fi.com/neticsoul)
 
-**A modular, retail-inspired UI overhaul for World of Warcraft 3.3.5a (Wrath of the Lich King).**
+**A modular, retail-inspired UI addon for World of Warcraft 3.3.5a (Wrath of the Lich King).**
 
 </div>
 
