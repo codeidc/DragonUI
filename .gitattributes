@@ -1,4 +1,4 @@
 # Exclude dev/repo files from GitHub release archives (git archive / zip downloads)
 .gitignore export-ignore
 .gitattributes export-ignore
-.github/** export-ignore
+.github/ export-ignore
