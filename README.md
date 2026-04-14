@@ -14,7 +14,13 @@
 
 ---
 
-<!-- TODO: Add a screenshot or GIF showing the full UI in action here -->
+<img width="1917" height="1054" alt="image" src="https://github.com/user-attachments/assets/dd45ed01-a35e-45fb-8426-897d29d35917" />
+<details>
+<summary><strong>See more screenshots (click to expand)</strong></summary>
+<img width="1918" height="1054" alt="image" src="https://github.com/user-attachments/assets/d29e956a-4831-4a99-b1f3-4f3208a337e2" />
+<img width="1917" height="1054" alt="image" src="https://github.com/user-attachments/assets/761d0315-ac4c-4aff-8e60-75beea91fdb1" />
+<img width="1076" height="745" alt="image" src="https://github.com/user-attachments/assets/47a14b2f-f7ec-46ab-af35-e938d52d0e09" />
+</details>
 
 ## 📥 Download
 
