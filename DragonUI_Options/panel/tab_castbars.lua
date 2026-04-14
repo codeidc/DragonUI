@@ -237,12 +237,6 @@ local function BuildTargetCastbar(scroll)
     AddCastbarControls(s, "castbar.target", refresh, {
         sizeXMin = 50, sizeXMax = 400,
         sizeYMin = 5, sizeYMax = 50,
-        resetFunc = function()
-            if addon.ResetTargetCastbarPosition then
-                addon.ResetTargetCastbarPosition()
-            end
-            print("|cFF00FF00[DragonUI]|r " .. LO["Target castbar position reset."])
-        end,
     })
 end
 
@@ -277,12 +271,6 @@ local function BuildFocusCastbar(scroll)
     AddCastbarControls(s, "castbar.focus", refresh, {
         sizeXMin = 50, sizeXMax = 400,
         sizeYMin = 5, sizeYMax = 50,
-        resetFunc = function()
-            if addon.ResetFocusCastbarPosition then
-                addon.ResetFocusCastbarPosition()
-            end
-            print("|cFF00FF00[DragonUI]|r " .. LO["Focus castbar position reset."])
-        end,
     })
 end
 
