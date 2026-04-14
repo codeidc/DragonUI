@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?logo=ko-fi)](https://ko-fi.com/neticsoul)
 
-**A modular UI addon for World of Warcraft 3.3.5a (Wrath of the Lich King), inspired by Dragonflight UI Classic.**
+**A modular, retail-inspired UI overhaul for World of Warcraft 3.3.5a (Wrath of the Lich King).**
 
 </div>
 
@@ -28,20 +28,24 @@
 ## 📦 Installation
 
 <details>
-<summary><strong>Step-by-step guide (click to expand)</strong></summary>
+<summary><strong>How to install (click to expand)</strong></summary>
 
-1. **Download** the ZIP from one of the links above.
-2. **Extract** the archive. You'll see a folder like `DragonUI-main` or `DragonUI-2.5`.
-3. Inside that folder, find these two folders:
-   - `DragonUI`
-   - `DragonUI_Options`
-4. **Copy both** into your WoW client's `Interface\AddOns\` directory.
-5. **Start the game** and make sure `DragonUI` and `DragonUI_Options` are enabled in the AddOns list.
-6. Open settings with `/dui` or the button in the Escape menu.
+1. Download the ZIP from one of the links above.
+2. Extract it and open the folder.
+3. Copy both `DragonUI` and `DragonUI_Options` to:
 
-> **Upgrading?** Just overwrite the old folders. Your settings are preserved automatically.
->
-> **Clean install?** Delete `WTF\Account\<YourAccount>\SavedVariables\DragonUI*` to reset all DragonUI settings.
+```text
+World of Warcraft/Interface/AddOns/
+```
+
+4. Start the game and verify `DragonUI` and `DragonUI_Options` are enabled in the AddOns list.
+5. Open settings with `/dui`.
+
+**Clean install (reset settings):** Delete:
+
+```text
+WTF/Account/<YourAccount>/SavedVariables/DragonUI*
+```
 
 </details>
 
@@ -80,7 +84,7 @@
 - 💎 Item quality borders, enhanced tooltips with class-colored borders, and range indicator.
 - ⌨️ Easy-to-use keybinding mode on supported buttons.
 
-And much more in the options panel.
+Extensive customization available directly in-game through the configuration panel.
 
 <!-- TODO: Add 2-3 screenshots here showing:
      1. The main UI in gameplay
@@ -104,7 +108,7 @@ And much more in the options panel.
 
 - Party/raid role icons (DPS, Healer, Tank) may be lost after `/reload` in Dungeon Finder groups.
 - Single-line tooltips show text overlapping the health bar.
-- Party and raid scenarios are still being validated.
+- Party and raid scenarios require further edge-case testing.
 - Some third-party addon setups may require manual module disabling.
 - Found a bug? [Open an issue](https://github.com/NeticSoul/DragonUI/issues).
 
