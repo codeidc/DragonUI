@@ -575,6 +575,31 @@ end
         end
     end
 
+    -- Keep secondary bars/buttons from auto-raising on mouse click.
+    -- In 3.3.5a, top-level frames promote to the highest frame level when clicked.
+    local function StabilizeSecondaryBarLayering()
+        if InCombatLockdown() then
+            return
+        end
+
+        local secondaryBars = {MultiBarBottomLeft, MultiBarBottomRight, MultiBarRight, MultiBarLeft}
+        for _, bar in ipairs(secondaryBars) do
+            if bar and bar.SetToplevel then
+                bar:SetToplevel(false)
+            end
+        end
+
+        local secondaryPrefixes = {"MultiBarBottomLeftButton", "MultiBarBottomRightButton", "MultiBarRightButton", "MultiBarLeftButton"}
+        for _, prefix in ipairs(secondaryPrefixes) do
+            for index = 1, NUM_ACTIONBAR_BUTTONS do
+                local button = _G[prefix .. index]
+                if button and button.SetToplevel then
+                    button:SetToplevel(false)
+                end
+            end
+        end
+    end
+
     function addon.PositionActionBars()
         if InCombatLockdown() then
             return
@@ -2170,6 +2195,9 @@ end
 
         -- Position action bars immediately
         PositionActionBarsToContainers_Initial()
+
+        -- Prevent click-only layer promotion on secondary bars.
+        StabilizeSecondaryBarLayering()
         
         -- Apply button positioning based on horizontal settings (RetailUI pattern)
         -- This ensures buttons are positioned correctly when horizontal mode is enabled on reload
@@ -2362,6 +2390,7 @@ end
             if not InCombatLockdown() and IsModuleEnabled() then
                 ApplyActionBarPositions()
                 PositionActionBarsToContainers()
+                StabilizeSecondaryBarLayering()
                 addon.ApplyAllBarButtonCounts()
             end
             local bars = {MultiBarBottomLeft, MultiBarBottomRight, MultiBarRight, MultiBarLeft}
@@ -2406,6 +2435,7 @@ end
             if IsModuleEnabled() then
                 ApplyActionBarPositions()
                 PositionActionBarsToContainers()
+                StabilizeSecondaryBarLayering()
             end
 
         elseif event == "PET_BAR_UPDATE" or event == "PET_BAR_UPDATE_COOLDOWN" or event == "UNIT_PET" then

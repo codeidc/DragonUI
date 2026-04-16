@@ -267,6 +267,19 @@ local function main_buttons(button, skipCombatGuard)
     
 	if not button or button.__styled then return; end
 
+    local buttonName = button:GetName()
+    local isMainActionButton = buttonName and buttonName:match('^ActionButton%d+$')
+
+    -- Prevent click-driven top-level promotion on secondary bars.
+    -- In 3.3.5a, top-level frames can raise above sibling art frames when clicked.
+    if not skipCombatGuard and not isMainActionButton and button.SetToplevel then
+        button:SetToplevel(false)
+        local parentBar = button:GetParent()
+        if parentBar and parentBar.SetToplevel then
+            parentBar:SetToplevel(false)
+        end
+    end
+
     -- Store original state before styling
     StoreOriginalButtonState(button)
 
@@ -325,6 +338,14 @@ local function additional_buttons(button)
     if InCombatLockdown() then return end
     
 	if not button then return; end
+
+    if button.SetToplevel then
+        button:SetToplevel(false)
+        local parentBar = button:GetParent()
+        if parentBar and parentBar.SetToplevel then
+            parentBar:SetToplevel(false)
+        end
+    end
 	
     -- Store original state before styling
     StoreOriginalButtonState(button)
