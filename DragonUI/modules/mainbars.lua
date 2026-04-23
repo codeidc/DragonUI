@@ -144,6 +144,17 @@ function addon.UpdatePetBarVisibility()
         return
     end
 
+    local petbarModuleEnabled = addon.IsModuleEnabled and addon:IsModuleEnabled("petbar")
+    if petbarModuleEnabled then
+        -- Petbar module reparents pet buttons to its own secure frame.
+        -- Keep Blizzard's PetActionBarFrame non-interactive to avoid
+        -- stale invisible hitboxes in its old location.
+        petBar:EnableMouse(false)
+        petBar:SetAlpha(0)
+        petBar:Hide()
+        return
+    end
+
     -- Check if player has a pet or is in a vehicle
     local hasPet = UnitExists("pet") and UnitIsVisible("pet")
     local inVehicle = UnitInVehicle("player")
@@ -844,7 +855,15 @@ end
             elseif config.mainbars.scale_petbar then
                 PetActionBarFrame:SetScale(config.mainbars.scale_petbar)
             end
-            PetActionBarFrame:EnableMouse(true)
+
+                local petbarModuleEnabled = addon.IsModuleEnabled and addon:IsModuleEnabled("petbar")
+                if petbarModuleEnabled then
+                    PetActionBarFrame:EnableMouse(false)
+                    PetActionBarFrame:SetAlpha(0)
+                    PetActionBarFrame:Hide()
+                else
+                    PetActionBarFrame:EnableMouse(true)
+                end
         end
 
         -- Hide Blizzard XP/Rep text by default (both styles manage their own)
@@ -2467,16 +2486,103 @@ end
 
 local syncingBars = false
 
+local secondaryBarButtonPrefixes = {
+    bottom_left = "MultiBarBottomLeftButton",
+    bottom_right = "MultiBarBottomRightButton",
+    right = "MultiBarRightButton",
+    left = "MultiBarLeftButton",
+}
+
+local function IsEditorModeActive()
+    return addon.EditorMode and addon.EditorMode.IsActive and addon.EditorMode:IsActive()
+end
+
+local function IsSecondaryBarEnabled(config, barName)
+    if not config then return false end
+    if config[barName .. "_enabled"] == false then
+        return false
+    end
+    -- Blizzard behavior: left bar (Right Bar 2) depends on right bar.
+    if barName == "left" and config.right_enabled == false then
+        return false
+    end
+    return true
+end
+
+local function SetSecondaryBarButtonsMouseEnabled(barName, enabled)
+    if InCombatLockdown() then return end
+
+    local prefix = secondaryBarButtonPrefixes[barName]
+    if not prefix then return end
+
+    for i = 1, NUM_ACTIONBAR_BUTTONS do
+        local button = _G[prefix .. i]
+        if button and button.EnableMouse then
+            button:EnableMouse(enabled)
+        end
+    end
+end
+
+local function GetSecondaryBarContainerFrame(barName)
+    local frames = addon.ActionBarFrames
+    if not frames then return nil end
+
+    local keyMap = {
+        bottom_left = "bottombarleft",
+        bottom_right = "bottombarright",
+        right = "rightbar",
+        left = "leftbar",
+    }
+
+    local key = keyMap[barName]
+    return key and frames[key] or nil
+end
+
+local function SetSecondaryBarContainerVisibility(barName, enabled)
+    local container = GetSecondaryBarContainerFrame(barName)
+    if not container then return end
+
+    if IsEditorModeActive() then
+        if not container:IsShown() then
+            container:Show()
+        end
+        container:SetAlpha(1)
+        if container.EnableMouse then
+            container:EnableMouse(true)
+        end
+        return
+    end
+
+    if container.EnableMouse then
+        container:EnableMouse(false)
+    end
+
+    if enabled then
+        if not container:IsShown() then
+            container:Show()
+        end
+        container:SetAlpha(1)
+    else
+        container:SetAlpha(0)
+        container:Hide()
+    end
+end
+
 -- Push DragonUI profile → Blizzard (persistent via SetActionBarToggles)
 function addon.SyncBarCVarsFromProfile()
     if syncingBars then return end
     syncingBars = true
     local config = addon.db and addon.db.profile and addon.db.profile.actionbars
     if config then
-        local bl = (config.bottom_left_enabled  ~= false) and 1 or 0
-        local br = (config.bottom_right_enabled ~= false) and 1 or 0
-        local r  = (config.right_enabled        ~= false) and 1 or 0
-        local l  = (config.left_enabled         ~= false) and 1 or 0
+        local blEnabled = IsSecondaryBarEnabled(config, "bottom_left")
+        local brEnabled = IsSecondaryBarEnabled(config, "bottom_right")
+        local rEnabled  = IsSecondaryBarEnabled(config, "right")
+        local lEnabled  = IsSecondaryBarEnabled(config, "left")
+
+        local bl = blEnabled and 1 or nil
+        local br = brEnabled and 1 or nil
+        local r  = rEnabled  and 1 or nil
+        local l  = lEnabled  and 1 or nil
 
         -- SetActionBarToggles persists into Blizzard saved variables AND
         -- sets the SHOW_MULTI_ACTIONBAR_* globals AND calls MultiActionBar_Update.
@@ -2484,20 +2590,32 @@ function addon.SyncBarCVarsFromProfile()
             SetActionBarToggles(bl, br, r, l)
         end
 
-        -- Force-show enabled bars so they're visible immediately.
-        -- Blizzard's MultiActionBar_Update may have :Hide()'d them;
-        -- we need them :Show()'n for our alpha-based visibility to work.
+        -- Keep enabled bars visible immediately, while disabled bars are hidden
+        -- and click-through so they cannot block other addons.
         if not InCombatLockdown() then
             local barMap = {
-                { frame = MultiBarBottomLeft,  enabled = bl == 1 },
-                { frame = MultiBarBottomRight, enabled = br == 1 },
-                { frame = MultiBarRight,       enabled = r  == 1 },
-                { frame = MultiBarLeft,        enabled = l  == 1 },
+                { name = "bottom_left",  frame = MultiBarBottomLeft,  enabled = blEnabled },
+                { name = "bottom_right", frame = MultiBarBottomRight, enabled = brEnabled },
+                { name = "right",        frame = MultiBarRight,       enabled = rEnabled },
+                { name = "left",         frame = MultiBarLeft,        enabled = lEnabled },
             }
             for _, bar in ipairs(barMap) do
+                SetSecondaryBarContainerVisibility(bar.name, bar.enabled)
+                SetSecondaryBarButtonsMouseEnabled(bar.name, bar.enabled)
                 if bar.frame then
-                    bar.frame:Show()  -- always Show; alpha controls visibility
-                    bar.frame:SetAlpha(bar.enabled and 1 or 0)
+                    if bar.enabled then
+                        bar.frame:Show()
+                        bar.frame:SetAlpha(1)
+                        if bar.frame.EnableMouse then
+                            bar.frame:EnableMouse(true)
+                        end
+                    else
+                        if bar.frame.EnableMouse then
+                            bar.frame:EnableMouse(false)
+                        end
+                        bar.frame:SetAlpha(0)
+                        bar.frame:Hide()
+                    end
                 end
             end
         end
@@ -2623,13 +2741,23 @@ function addon.UpdateActionBarVisibility(barName, frame)
 
     -- Check if bar is disabled (secondary bars only)
     if barName ~= "main" then
-        local enabledKey = barName .. "_enabled"
-        if config[enabledKey] == false then
+        local enabled = IsSecondaryBarEnabled(config, barName)
+
+        SetSecondaryBarContainerVisibility(barName, enabled)
+        SetSecondaryBarButtonsMouseEnabled(barName, enabled)
+
+        if not enabled then
             if not InCombatLockdown() then
-                frame:Show()       -- keep frame alive for state tracking
+                if frame.EnableMouse then
+                    frame:EnableMouse(false)
+                end
+                frame:Hide()
             end
-            frame:SetAlpha(0)  -- visually hidden
+            frame:SetAlpha(0)
             return
+        end
+        if not InCombatLockdown() and frame.EnableMouse then
+            frame:EnableMouse(true)
         end
     end
 
