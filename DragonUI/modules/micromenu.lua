@@ -200,8 +200,6 @@ local function RefreshBagSlotIcons()
         if bagButton then
             local icon = _G[bagButton:GetName() .. 'IconTexture']
             if icon then
-                PaperDollItemSlotButton_Update(bagButton)
-
                 local inventorySlot = bagButton:GetID()
                 local bagLink = GetInventoryItemLink("player", inventorySlot)
                 local itemTexture = GetInventoryItemTexture("player", inventorySlot)
@@ -241,6 +239,43 @@ local function ScheduleBagSlotIconRefreshes()
                 RefreshBagSlotIcons()
             end
         end, 1.0)
+    end
+end
+
+-- Adjusts icon alpha for all bag slots to reflect empty/filled state.
+-- Blizzard's default handler already updates IconTexture on BAG_UPDATE, so
+-- only the alpha fade needs to be applied here.
+local PAPERDOLL_BAG_PLACEHOLDER = "interface\\paperdoll\\ui-paperdoll-slot-bag"
+local function UpdateBagSlotAlpha()
+    for i = 1, #bagslots do
+        local bagButton = bagslots[i]
+        if bagButton then
+            local normalTexture = bagButton:GetNormalTexture()
+            if normalTexture then
+                normalTexture:SetAlpha(0)
+                normalTexture:Hide()
+            end
+
+            local icon = _G[bagButton:GetName() .. 'IconTexture']
+            if icon then
+                local inventorySlot = bagButton:GetID()
+                local bagLink = inventorySlot and GetInventoryItemLink("player", inventorySlot) or nil
+                local tex = icon:GetTexture()
+                local texPath = tex and tostring(tex):lower() or nil
+                -- Primary source of truth: equipped bag link.
+                -- Texture path is a fallback signal for placeholder visuals.
+                local isEmpty = (not bagLink)
+                if not isEmpty and texPath and texPath:find(PAPERDOLL_BAG_PLACEHOLDER, 1, true) then
+                    isEmpty = true
+                end
+
+                if not isEmpty then
+                    icon:SetAlpha(1)
+                else
+                    icon:SetAlpha(0)
+                end
+            end
+        end
     end
 end
 
@@ -322,8 +357,8 @@ local function EnsureLootAnimationToMainBag()
     -- Simple approach: when bags are hidden, WoW should naturally redirect loot to main bag
 end
 
--- [ALL OTHER UTILITY FUNCTIONS FROM SECTIONS 4-5 REMAIN THE SAME]
--- Including: HideUnwantedBagFrames, ScheduleHideFrames, SetupPVPButton, SetupCharacterButton, etc.
+-- Additional utility helpers are defined below (frame cleanup,
+-- button setup, and style/state synchronization).
 local function UpdateCharacterPortraitVisibility()
     if MicroButtonPortrait then
         if addon and addon.db and addon.db.profile and addon.db.profile.micromenu and
@@ -796,7 +831,7 @@ local function ApplyMicromenuSystem()
             local bagName = bags:GetName()
 
             local possibleFrames = {bagName .. "Background", bagName .. "Border", bagName .. "Frame",
-                                    bagName .. "Texture", bagName .. "Highlight", bagName .. "Glow", bagName .. "Green",
+                                    bagName .. "Texture", bagName .. "NormalTexture", bagName .. "Highlight", bagName .. "Glow", bagName .. "Green",
                                     bagName .. "NormalTexture2", bagName .. "IconBorder", bagName .. "Flash",
                                     bagName .. "NewItemTexture", bagName .. "Shine", bagName .. "NewItemGlow"}
 
@@ -810,11 +845,25 @@ local function ApplyMicromenuSystem()
                 end
             end
 
+            local normalTexture = bags:GetNormalTexture()
+            if normalTexture then
+                normalTexture:SetAlpha(0)
+                normalTexture:Hide()
+            end
+
             -- Hide problematic texture regions
             local numRegions = bags:GetNumRegions()
             for j = 1, numRegions do
                 local region = select(j, bags:GetRegions())
                 if region and region:GetObjectType() == "Texture" then
+                    -- Keep DragonUI managed textures visible; only suppress
+                    -- Blizzard default layers.
+                    if region == bags.customBorder or region == bags.background then
+                        region:Show()
+                        if region.SetAlpha then
+                            region:SetAlpha(1)
+                        end
+                    else
                     local texture = region:GetTexture()
                     if texture then
                         local textureLower = tostring(texture):lower()
@@ -833,6 +882,7 @@ local function ApplyMicromenuSystem()
                                 end
                             end
                         end
+                    end
                     end
                 end
             end
@@ -859,28 +909,25 @@ local function ApplyMicromenuSystem()
         end
     end
 
-    -- Frame cleanup scheduler
+    -- Frame cleanup scheduler (debounced).
+    -- Collapses multiple calls within a burst into a single execution at the
+    -- earliest requested time. Prevents redundant region scans when several
+    -- callers schedule cleanup in quick succession.
     local hideFramesScheduler = CreateFrame("Frame")
-    local hideFramesQueue = {}
+    local hidePendingTime = nil
 
     local function ScheduleHideFrames(delay)
-        local scheduleTime = GetTime() + (delay or 0)
-        table.insert(hideFramesQueue, scheduleTime)
+        local target = GetTime() + (delay or 0)
+        if hidePendingTime and hidePendingTime <= target then
+            return -- an earlier execution is already pending
+        end
+        hidePendingTime = target
 
         if not hideFramesScheduler:GetScript("OnUpdate") then
             hideFramesScheduler:SetScript("OnUpdate", function(self)
-                local currentTime = GetTime()
-                local i = 1
-                while i <= #hideFramesQueue do
-                    if currentTime >= hideFramesQueue[i] then
-                        HideUnwantedBagFrames()
-                        table.remove(hideFramesQueue, i)
-                    else
-                        i = i + 1
-                    end
-                end
-
-                if #hideFramesQueue == 0 then
+                if hidePendingTime and GetTime() >= hidePendingTime then
+                    HideUnwantedBagFrames()
+                    hidePendingTime = nil
                     self:SetScript("OnUpdate", nil)
                 end
             end)
@@ -1394,6 +1441,12 @@ local function ApplyMicromenuSystem()
             bags:SetNormalTexture ''
             bags:SetSize(28, 28)
 
+            local normalTexture = bags:GetNormalTexture()
+            if normalTexture then
+                normalTexture:SetAlpha(0)
+                normalTexture:Hide()
+            end
+
             bags:GetCheckedTexture():set_atlas('bag-border-highlight-2x', true)
             bags:GetCheckedTexture():SetDrawLayer('OVERLAY', 7)
 
@@ -1418,6 +1471,8 @@ local function ApplyMicromenuSystem()
                 bags.customBorder:SetPoint('CENTER')
                 bags.customBorder:set_atlas('bag-border-2x', true)
             end
+            bags.customBorder:Show()
+            bags.customBorder:SetAlpha(1)
 
             local w, h = bags.customBorder:GetSize()
             if not bags.background then
@@ -1427,6 +1482,8 @@ local function ApplyMicromenuSystem()
                 bags.background:SetTexture(addon._dir .. 'bagslots2x')
                 bags.background:SetTexCoord(295 / 512, 356 / 512, 64 / 128, 125 / 128)
             end
+            bags.background:Show()
+            bags.background:SetAlpha(1)
 
             local count = _G[bags:GetName() .. 'Count']
             count:SetClearPoint('CENTER', 0, -10);
@@ -1504,9 +1561,10 @@ local function ApplyMicromenuSystem()
 
         EnsureLootAnimationToMainBag()
         HideUnwantedBagFrames()
-        ScheduleHideFrames(0.5)
+        -- A single deferred pass handles any late-created child textures
+        -- (e.g. addons styling bag slots after us). The debounced scheduler
+        -- collapses any additional calls to a single execution.
         ScheduleHideFrames(1.0)
-        ScheduleHideFrames(2.0)
     end
 
     function MainMenuMicroButtonMixin:bagbuttons_reposition()
@@ -2415,8 +2473,11 @@ end
 
     addon.package:RegisterEvents(function(self, event)
         if not IsModuleEnabled() then return end
-        
+
         if event == 'BAG_UPDATE' then
+            -- BAG_UPDATE fires frequently (e.g. every time ammo is consumed).
+            -- Blizzard updates IconTexture automatically; only toggle KeyRing
+            -- visibility and refresh slot alpha here.
             if HasKey() then
                 if not KeyRingButton:IsShown() then
                     KeyRingButton:Show();
@@ -2427,7 +2488,7 @@ end
                 end
             end
 
-            ScheduleHideFrames(0.1)
+            UpdateBagSlotAlpha()
         end
     end, 'BAG_UPDATE');
 
@@ -2443,16 +2504,10 @@ end
         HideUnwantedBagFrames()
     end, 'PLAYER_ENTERING_WORLD');
 
-    addon.package:RegisterEvents(function(self, event, bagID)
-        if not IsModuleEnabled() then return end
-
-        -- Validate bagID is in valid range (0-3 for bag container IDs).
-        if bagID and bagID >= 0 and bagID <= 3 then
-            ScheduleBagSlotIconRefreshes()
-        end
-
-        HideUnwantedBagFrames()
-    end, 'BAG_UPDATE');
+    -- NOTE: equipped-bag slot icons do not change when bag contents change;
+    -- PLAYER_EQUIPMENT_CHANGED handles real bag swaps and triggers the full
+    -- icon refresh there. The BAG_UPDATE handler above is intentionally
+    -- lightweight to avoid unnecessary work on frequent inventory events.
 
     addon.package:RegisterEvents(function()
         local xOffset
@@ -2537,39 +2592,9 @@ end
     end
 
     -- Register all events
-    local eventFrame1 = MicromenuModule.eventFrames.bagUpdate or CreateFrame("Frame")
-    MicromenuModule.eventFrames.bagUpdate = eventFrame1
-    addon.package:RegisterEvents(function(self, event)
-        if IsModuleEnabled() then
-            if event == 'BAG_UPDATE' then
-                if HasKey() then
-                    if not KeyRingButton:IsShown() then
-                        KeyRingButton:Show()
-                    end
-                else
-                    if KeyRingButton:IsShown() then
-                        KeyRingButton:Hide()
-                    end
-                end
-                ScheduleHideFrames(0.1)
-            end
-        end
-    end, 'BAG_UPDATE')
-
-    local eventFrame2 = MicromenuModule.eventFrames.playerEntering or CreateFrame("Frame")
-    MicromenuModule.eventFrames.playerEntering = eventFrame2
-    addon.package:RegisterEvents(function(self, event)
-        if IsModuleEnabled() then
-            ScheduleBagSlotIconRefreshes()
-
-            if KeyRingButton and HasKey() then
-                KeyRingButton:Show()
-            end
-
-            ScheduleHideFrames(0.2)
-            ScheduleHideFrames(0.5)
-        end
-    end, 'PLAYER_ENTERING_WORLD')
+    -- NOTE: BAG_UPDATE is handled in SECTION 9 above. A second registration
+    -- for the same event is intentionally omitted here to avoid duplicate
+    -- work per inventory event.
 
     local eventFrame3 = MicromenuModule.eventFrames.playerEquipmentChanged or CreateFrame("Frame")
     MicromenuModule.eventFrames.playerEquipmentChanged = eventFrame3
@@ -2579,8 +2604,12 @@ end
         -- Bag slot swaps (equipped container changes) must refresh icons explicitly.
         -- Container 0 is the backpack (no inventory slot); equipped bags are 1-4.
         if slotID and slotID >= ContainerIDToInventoryID(1) and slotID <= ContainerIDToInventoryID(4) then
-            ScheduleBagSlotIconRefreshes()
-            ScheduleHideFrames(0.1)
+            if MainMenuMicroButtonMixin.bagbuttons_setup then
+                MainMenuMicroButtonMixin:bagbuttons_setup()
+            end
+            RefreshBagSlotIcons()
+            UpdateBagSlotAlpha()
+            HideUnwantedBagFrames()
         end
     end, 'PLAYER_EQUIPMENT_CHANGED')
 end
@@ -2614,8 +2643,6 @@ end
 -- ============================================================================
 -- Function to load default widget settings
 -- ============================================================================
-
--- Add this function near the end of the file, before initialization:
 
 local function LoadDefaultWidgetSettings()
     -- Ensure widget configuration exists
@@ -2655,7 +2682,7 @@ local function Initialize()
         return
     end
 
-    -- ADDED: Load default widget settings
+    -- Ensure default widget coordinates exist before module setup runs.
     LoadDefaultWidgetSettings()
 
     -- Only apply if module is enabled
