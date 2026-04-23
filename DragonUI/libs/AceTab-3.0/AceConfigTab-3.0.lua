@@ -102,4 +102,7 @@ local function usage(t, matches, _, cmdline)
     end
 end
 
-LibStub("AceTab-3.0"):RegisterTabCompletion("aguftest", "%/%w+ ", createWordlist, usage)
+-- DragonUI does not use this experimental ag_UnitFrames completion.
+-- Leaving it enabled can hijack slash-command Tab handling (e.g. /whisper).
+-- Keep the helper code, but do not register it by default.
+-- LibStub("AceTab-3.0"):RegisterTabCompletion("aguftest", "%/%w+ ", createWordlist, usage)
