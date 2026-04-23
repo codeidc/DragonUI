@@ -76,7 +76,7 @@ function addon:ToggleOptionsUI(msg)
 
     if not IsAddOnLoaded("DragonUI_Options") then
         local noConfig
-        local _, _, _, _, reason = GetAddOnInfo("DragonUI_Options")
+        local reason = select(6, GetAddOnInfo("DragonUI_Options"))
         
         if reason ~= "MISSING" and reason ~= "DISABLED" then
             LoadAddOn("DragonUI_Options")

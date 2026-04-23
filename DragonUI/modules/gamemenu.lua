@@ -85,6 +85,11 @@ local function GetMenuHostFrame()
     return GetGameMenuFrame()
 end
 
+local function IsOptionsAddonUnavailable()
+    local reason = select(6, GetAddOnInfo("DragonUI_Options"))
+    return reason == "MISSING" or reason == "DISABLED"
+end
+
 local function FindClassicInsertButton(menuHost)
     local candidates = {
         -- Prefer bottom-area insertion on classic clients.
@@ -196,6 +201,13 @@ local function PositionDragonUIButton()
 end
 
 local function EnsureDragonUIButton()
+    if IsOptionsAddonUnavailable() then
+        if dragonUIButton then
+            dragonUIButton:Hide()
+        end
+        return
+    end
+
     if not buttonAdded then
         CreateDragonUIButton()
     elseif dragonUIButton then
@@ -243,6 +255,8 @@ end
 -- ============================================================================
 
 CreateDragonUIButton = function()
+    if IsOptionsAddonUnavailable() then return true end
+
     if dragonUIButton or buttonAdded then return true end
     local menuHost = GetMenuHostFrame()
     if not menuHost then return false end
