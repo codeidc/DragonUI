@@ -978,6 +978,9 @@ do
                 -- Inventory/bank-bag slots: native Blizzard handler correctly shows
                 -- Soulbound, durability, and handles initial shift+compare
                 ContainerFrameItemButton_OnEnter(self)
+                -- Keep tooltip content in sync while the hovered slot updates
+                -- (for example, right-click equip swaps the hovered item).
+                self.UpdateTooltip = ContainerFrameItemButton_OnEnter
             end
         end
     end
@@ -1009,7 +1012,13 @@ do
 
     function ItemSlot:OnLeave()
         self._lastShiftState = nil
+        self.UpdateTooltip = nil
         GameTooltip:Hide()
+        if GameTooltip.shoppingTooltips then
+            for _, tt in ipairs(GameTooltip.shoppingTooltips) do
+                tt:Hide()
+            end
+        end
         ResetCursor()
     end
 
