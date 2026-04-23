@@ -598,6 +598,42 @@ local defaults = {
             cooldowns = {
                 enabled = true -- Show cooldown timers on action buttons
             },
+            auracooldowns = {
+                enabled = false, -- Optional module: customizes target/focus aura icons and timers
+                icons_enabled = false,
+                timers_enabled = false,
+                timer_units = "both",
+                duration_anchor = "CENTER",
+                duration_offset_x = 0,
+                duration_offset_y = 0,
+                stack_anchor = "TOPRIGHT",
+                stack_offset_x = 0,
+                stack_offset_y = 0,
+                duration_font = "system",
+                count_font = "system",
+                buffs = {
+                    icon_size = 0,
+                    icon_scale = 1,
+                    stack_font_size = 0,
+                },
+                debuffs = {
+                    icon_size = 0,
+                    icon_scale = 1,
+                    stack_font_size = 0,
+                },
+                target = {
+                    enabled = false,
+                    min_duration = 0,
+                    max_duration_minutes = 0,
+                    font_size = 11,
+                },
+                focus = {
+                    enabled = false,
+                    min_duration = 0,
+                    max_duration_minutes = 0,
+                    font_size = 11,
+                }
+            },
             rage_indicator = {
                 enabled = true -- Tint action button icons by range and usability
             },

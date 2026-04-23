@@ -178,6 +178,26 @@ local function SkinDropdown(widget)
     if not dd or dd._dragonSkinned then return end
     dd._dragonSkinned = true
 
+    local function SyncDropdownButtonState()
+        local disabled = widget.disabled == true
+        if widget.button and widget.button.GetNormalTexture and widget.button:GetNormalTexture() then
+            widget.button:GetNormalTexture():SetVertexColor(disabled and 0.4 or 0.7, disabled and 0.4 or 0.7, disabled and 0.4 or 0.7, disabled and 0.8 or 1)
+        end
+        if widget.button and widget.button.GetHighlightTexture and widget.button:GetHighlightTexture() then
+            if disabled then
+                widget.button:GetHighlightTexture():SetVertexColor(0, 0, 0, 0)
+            else
+                widget.button:GetHighlightTexture():SetVertexColor(0.09, 0.52, 0.82, 0.6)
+            end
+        end
+    end
+
+    local originalSetDisabled = widget.SetDisabled
+    widget.SetDisabled = function(self, disabled)
+        originalSetDisabled(self, disabled)
+        SyncDropdownButtonState()
+    end
+
     -- 1. Strip ALL texture regions from UIDropDownMenuTemplate (ElvUI StripTextures pattern)
     if dd.GetNumRegions then
         for i = 1, dd:GetNumRegions() do
@@ -261,6 +281,9 @@ local function SkinDropdown(widget)
     if btn then
         btn:HookScript("OnClick", SkinPullout)
     end
+
+    originalSetDisabled(widget, widget.disabled == true)
+    SyncDropdownButtonState()
 end
 
 local function SkinButton(widget)

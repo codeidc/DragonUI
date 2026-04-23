@@ -151,6 +151,16 @@ local function BuildModulesTab(scroll)
     })
 
     ModuleToggle(uiSection, {
+        label = LO["Target & Focus Aura Customization"],
+        desc = LO["Customize target/focus aura icons and timers."],
+        moduleName = "auracooldowns",
+        requiresReload = false,
+        callback = function()
+            if addon.RefreshAuraCooldownTextSystem then addon.RefreshAuraCooldownTextSystem() end
+        end,
+    })
+
+    ModuleToggle(uiSection, {
         label = LO["Range Indicator"],
         desc = LO["Tints action button icons based on range and usability: red = out of range, blue = not enough mana, gray = unusable."],
         moduleName = "rage_indicator",
@@ -235,6 +245,7 @@ local function BuildModulesTab(scroll)
             { key = "noop",        name = LO["Hide Blizzard Elements"] },
             { key = "micromenu",   name = LO["Micro Menu"] },
             { key = "cooldowns",   name = LO["Cooldowns"] },
+            { key = "auracooldowns", name = LO["Target & Focus Aura Customization"] },
             { key = "minimap",     name = LO["Minimap"] },
             { key = "buffs",       name = LO["Buffs"] },
             { key = "keybinding",  name = LO["KeyBinding"] },
