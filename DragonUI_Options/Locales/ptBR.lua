@@ -168,6 +168,7 @@ L["Buff frame styling and toggle button."] = "Estilo do quadro de buffs e botão
 L["Cooldown Timers"] = "Temporizadores de Recarga"
 L["Show cooldown timers on action buttons."] = "Mostrar temporizadores de recarga nos botões de ação."
 L["Range Indicator"] = "Indicador de Alcance"
+L["Show Hotkey Text"] = "Mostrar texto de atalho"
 L["Tints action button icons based on range and usability: red = out of range, blue = not enough mana, gray = unusable."] = "Colore os ícones dos botões de ação com base no alcance e na usabilidade: vermelho = fora de alcance, azul = mana insuficiente, cinza = inutilizável."
 L["Quest Tracker"] = "Rastreador de Missões"
 L["DragonUI quest tracker positioning and styling."] = "Posicionamento e estilo do rastreador de missões do DragonUI."

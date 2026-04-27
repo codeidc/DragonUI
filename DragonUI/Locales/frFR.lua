@@ -36,6 +36,11 @@ L["Hide Gryphons"] = "Masquer les griffons"
 L["Understood"] = "Compris"
 L["Buttons"] = "Boutons"
 L["Main Bars"] = "Barres principales"
+L["Stance Button %d"] = true
+L["Pet Action Button %d"] = true
+L["Multicast Button %d"] = true
+L["Totem Call Button"] = true
+L["Totem Recall Button"] = true
 
 L["Copy Text"] = "Copier le texte"
 

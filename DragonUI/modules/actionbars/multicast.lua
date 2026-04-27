@@ -375,12 +375,18 @@ local function SetupShamanMulticast()
         hooksecurefunc('MultiCastSummonSpellButton_Update', function()
             if not InCombatLockdown() then
                 PositionTotemButtons()
+                if addon.RefreshAdditionalBarHotkeys then
+                    addon.RefreshAdditionalBarHotkeys()
+                end
             end
         end)
         
         hooksecurefunc('MultiCastRecallSpellButton_Update', function()
             if not InCombatLockdown() then
                 PositionTotemButtons()
+                if addon.RefreshAdditionalBarHotkeys then
+                    addon.RefreshAdditionalBarHotkeys()
+                end
             end
         end)
         
@@ -388,6 +394,9 @@ local function SetupShamanMulticast()
         hooksecurefunc('MultiCastSlotButton_Update', function()
             if not InCombatLockdown() then
                 PositionTotemButtons()
+                if addon.RefreshAdditionalBarHotkeys then
+                    addon.RefreshAdditionalBarHotkeys()
+                end
             end
         end)
     end

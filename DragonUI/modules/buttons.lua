@@ -5,6 +5,7 @@ local unpack = unpack;
 local select = select;
 local format = string.format;
 local match = string.match;
+local GetTime = GetTime;
 local NUM_PET_ACTION_SLOTS = NUM_PET_ACTION_SLOTS;
 local NUM_SHAPESHIFT_SLOTS = NUM_SHAPESHIFT_SLOTS;
 local NUM_POSSESS_SLOTS = NUM_POSSESS_SLOTS;
@@ -30,7 +31,8 @@ local ButtonsModule = {
     applied = false,
     originalValues = {},  -- Store original button states for restoration
     hooked = false,
-    pendingRefresh = false  -- Flag to indicate pending refresh after combat
+    pendingRefresh = false,  -- Flag to indicate pending refresh after combat
+    rangeIndicatorSuppressedUntil = 0
 }
 
 -- Register with ModuleRegistry (if available)
@@ -56,41 +58,146 @@ local function GetButtonsConfig()
     return addon.db and addon.db.profile and addon.db.profile.buttons
 end
 
--- ============================================================================
--- BUTTON ITERATOR
--- ============================================================================
+local function IsAdditionalBarHotkeyEnabled(buttonName)
+    if not buttonName or not addon.db or not addon.db.profile then
+        return true
+    end
 
-addon.buttons_iterator = function()
-	local index = 0
-	local barIndex = 1
-	return function()
-		index = index + 1
-		if index > 12 then
-			index = 1
-			barIndex = barIndex + 1
-		end
-		if actionbars[barIndex] then
-			return _G[actionbars[barIndex]..index]
-		end
-	end
+    local additional = addon.db.profile.additional
+    if not additional then
+        return true
+    end
+
+    if buttonName:match('^ShapeshiftButton%d+$') then
+        return not (additional.stance and additional.stance.show_hotkey == false)
+    end
+
+    if buttonName:match('^PetActionButton%d+$') then
+        return not (additional.pet and additional.pet.show_hotkey == false)
+    end
+
+    if buttonName:match('^PossessButton%d+$')
+        or buttonName:match('^MultiCastActionButton%d+$')
+        or buttonName == 'MultiCastSummonSpellButton'
+        or buttonName == 'MultiCastRecallSpellButton' then
+        return not (additional.totem and additional.totem.show_hotkey == false)
+    end
+
+    return true
 end
 
--- ============================================================================
--- UTILITY FUNCTIONS
--- ============================================================================
+local function IsMulticastButton(buttonName)
+    return buttonName and (
+        buttonName:match('^MultiCastActionButton%d+$')
+        or buttonName == 'MultiCastSummonSpellButton'
+        or buttonName == 'MultiCastRecallSpellButton'
+    )
+end
 
--- ============================================================================
--- ACTION BUTTON GRID MANAGEMENT
---
--- APPROACH (matches pretty_actionbar):
---   • MAIN BAR (ActionButton1-12): We own it.  Always showgrid=1 so empty
---     slots are visible (Dragonflight look).
---   • ADDITIONAL BARS (MultiBar*): Blizzard owns them entirely.  We do NOT
---     touch showgrid, Show() or Hide() on any multibar button.  The
---     Interface Options checkbox’s setFunc directly calls
---     MultiActionBar_ShowAllGrids / MultiActionBar_HideAllGrids, which
---     works independently of MainMenuBar events.
--- ============================================================================
+local function IsAdditionalHotkeyTarget(buttonName)
+    return buttonName and (
+        buttonName:match('^PetActionButton%d+$')
+        or buttonName:match('^PossessButton%d+$')
+        or IsMulticastButton(buttonName)
+    )
+end
+
+local function GetSafeEffectiveScale(frame, fallback)
+    local scale = frame and frame.GetEffectiveScale and frame:GetEffectiveScale()
+    if scale and scale > 0 then
+        return scale
+    end
+
+    scale = UIParent and UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()
+    if scale and scale > 0 then
+        return scale
+    end
+
+    return fallback or 1
+end
+
+local function NormalizeAdditionalHotkeyVisual(button, hotkey)
+    if not button or not hotkey then return end
+
+    local buttonName = button:GetName()
+    if not IsAdditionalHotkeyTarget(buttonName) then return end
+
+    local isMulticast = IsMulticastButton(buttonName)
+    local referenceButton = (isMulticast and _G.ActionButton1) or _G.ShapeshiftButton1
+    local referenceHotkey = (isMulticast and _G.ActionButton1HotKey) or _G.ShapeshiftButton1HotKey
+
+    hotkey:ClearAllPoints()
+    local _, _, _, xOfs, yOfs = referenceHotkey and referenceHotkey:GetPoint(1)
+    hotkey:SetPoint('TOPRIGHT', button, 'TOPRIGHT', (xOfs or -2) - (isMulticast and 0 or 2), yOfs or -3)
+
+    if not referenceHotkey then
+        hotkey:SetJustifyH('RIGHT')
+        return
+    end
+
+    hotkey:SetJustifyH(referenceHotkey:GetJustifyH() or 'RIGHT')
+    hotkey:SetJustifyV(referenceHotkey:GetJustifyV() or 'MIDDLE')
+
+    local font, size, flags = referenceHotkey:GetFont()
+    if font and size then
+        local referenceScale = GetSafeEffectiveScale(referenceButton, 1)
+        local buttonScale = GetSafeEffectiveScale(button, referenceScale)
+        hotkey:SetFont(font, size * (referenceScale / buttonScale), flags)
+    end
+end
+
+local function ButtonHasActionForRangeIndicator(buttonName, button)
+    if not buttonName or not button then
+        return false
+    end
+
+    if buttonName:match('^ActionButton%d+$')
+        or buttonName:match('^MultiBarBottomLeftButton%d+$')
+        or buttonName:match('^MultiBarBottomRightButton%d+$')
+        or buttonName:match('^MultiBarRightButton%d+$')
+        or buttonName:match('^MultiBarLeftButton%d+$')
+        or buttonName:match('^BonusActionButton%d+$')
+        or buttonName:match('^VehicleMenuBarActionButton%d+$') then
+        return button.action and HasAction and HasAction(button.action)
+    end
+
+    local buttonIndex = (button.GetID and button:GetID()) or tonumber(buttonName:match('(%d+)$'))
+    if not buttonIndex then
+        return false
+    end
+
+    if buttonName:match('^ShapeshiftButton%d+$') and GetShapeshiftFormInfo then
+        local _, formName = GetShapeshiftFormInfo(buttonIndex)
+        return formName ~= nil
+    end
+
+    if buttonName:match('^PetActionButton%d+$') and GetPetActionInfo then
+        local name, _, texture = GetPetActionInfo(buttonIndex)
+        return name ~= nil or texture ~= nil
+    end
+
+    if buttonName:match('^PossessButton%d+$') and GetPossessInfo then
+        local texture, name = GetPossessInfo(buttonIndex)
+        return texture ~= nil or name ~= nil
+    end
+
+    return false
+end
+
+addon.buttons_iterator = function()
+    local index = 0
+    local barIndex = 1
+    return function()
+        index = index + 1
+        if index > 12 then
+            index = 1
+            barIndex = barIndex + 1
+        end
+        if actionbars[barIndex] then
+            return _G[actionbars[barIndex] .. index]
+        end
+    end
+end
 
 function addon.actionbuttons_grid()
     if not IsModuleEnabled() then return end
@@ -98,7 +205,7 @@ function addon.actionbuttons_grid()
         ButtonsModule.pendingRefresh = true
         return
     end
-    
+
     for index = 1, NUM_ACTIONBAR_BUTTONS do
         local button = _G[format('ActionButton%d', index)]
         if button then
@@ -199,20 +306,107 @@ local function actionbuttons_hotkey(button)
 	local hotkey = _G[buttonName..'HotKey']
 	if not hotkey then return end
 	
-	local text = hotkey:GetText()
-	if not text then return end
-	
 	local db = GetButtonsConfig()
 	if not db or not db.hotkey then return end
-	
-	if RANGE_INDICATOR and text == RANGE_INDICATOR then
-		if db.hotkey.range then
+
+    local showHotkeyText = db.hotkey.show and IsAdditionalBarHotkeyEnabled(buttonName)
+    if not showHotkeyText then
+        hotkey:SetAlpha(0)
+        hotkey:SetText('')
+        hotkey:Hide()
+        return
+    end
+
+    hotkey:Show()
+
+    local currentHotkeyText = hotkey:GetText()
+
+    local function ResolveBindingTextFromCommand(command)
+        if not command or command == '' then return nil end
+        local key = GetBindingKey(command)
+        if not key then return nil end
+        return GetBindingText(key, 'KEY_') or key
+    end
+
+    local function ResolveButtonHotkeyText()
+        local preferCanonicalBinding = buttonName:match('^ShapeshiftButton%d+$') ~= nil
+        local text = hotkey:GetText()
+        if not preferCanonicalBinding and text and text ~= '' and (not RANGE_INDICATOR or text ~= RANGE_INDICATOR) then
+            return text
+        end
+
+        local index = tonumber(buttonName:match('(%d+)$'))
+        local candidates
+
+        if buttonName:match('^ActionButton%d+$') then
+            candidates = {index and ('ACTIONBUTTON' .. index) or nil}
+        elseif buttonName:match('^MultiBarBottomLeftButton%d+$') then
+            candidates = {index and ('MULTIACTIONBAR1BUTTON' .. index) or nil}
+        elseif buttonName:match('^MultiBarBottomRightButton%d+$') then
+            candidates = {index and ('MULTIACTIONBAR2BUTTON' .. index) or nil}
+        elseif buttonName:match('^MultiBarRightButton%d+$') then
+            candidates = {index and ('MULTIACTIONBAR3BUTTON' .. index) or nil}
+        elseif buttonName:match('^MultiBarLeftButton%d+$') then
+            candidates = {index and ('MULTIACTIONBAR4BUTTON' .. index) or nil}
+        elseif buttonName:match('^ShapeshiftButton%d+$') then
+            candidates = {index and ('SHAPESHIFTBUTTON' .. index) or nil}
+        elseif buttonName:match('^PetActionButton%d+$') then
+            candidates = {
+                index and ('PETACTIONBUTTON' .. index) or nil,
+                index and ('BONUSACTIONBUTTON' .. index) or nil,
+            }
+        elseif buttonName:match('^PossessButton%d+$') then
+            candidates = {
+                index and ('POSSESSBUTTON' .. index) or nil,
+                index and ('BONUSACTIONBUTTON' .. index) or nil,
+            }
+        elseif buttonName:match('^MultiCastActionButton%d+$') then
+            candidates = {index and ('MULTICASTACTIONBUTTON' .. index) or nil}
+        elseif buttonName == 'MultiCastSummonSpellButton' then
+            candidates = {'MULTICASTSUMMONSPELL'}
+        elseif buttonName == 'MultiCastRecallSpellButton' then
+            candidates = {'MULTICASTRECALLSPELL'}
+        elseif buttonName:match('^BonusActionButton%d+$') then
+            candidates = {index and ('BONUSACTIONBUTTON' .. index) or nil}
+        else
+            candidates = nil
+        end
+
+        if candidates then
+            for _, command in ipairs(candidates) do
+                local resolvedText = ResolveBindingTextFromCommand(command)
+                if resolvedText and resolvedText ~= '' then
+                    return resolvedText
+                end
+            end
+        end
+
+        if button.GetHotkey then
+            local ok, resolved = pcall(button.GetHotkey, button)
+            if ok and resolved and resolved ~= '' then
+                return resolved
+            end
+        end
+
+        if text and text ~= '' and (not RANGE_INDICATOR or text ~= RANGE_INDICATOR) then
+            return preferCanonicalBinding and '' or text
+        end
+
+        return ''
+    end
+
+    local text = ResolveButtonHotkeyText()
+    local suppressRangeIndicator = GetTime and GetTime() < (ButtonsModule.rangeIndicatorSuppressedUntil or 0)
+
+    if RANGE_INDICATOR
+        and currentHotkeyText == RANGE_INDICATOR
+        and db.hotkey.range
+        and not suppressRangeIndicator
+        and ButtonHasActionForRangeIndicator(buttonName, button) then
 			hotkey:SetText(RANGE_INDICATOR)
-		else
-			hotkey:SetText('')
-		end
+        hotkey:SetAlpha(1)
 	else
-		hotkey:SetAlpha(db.hotkey.show and 1 or 0)
+        hotkey:SetAlpha(1)
 		
 		-- Use custom formatting system
 		local formattedText = GetKeyText(text)
@@ -228,6 +422,55 @@ local function actionbuttons_hotkey(button)
 			hotkey:SetShadowColor(unpack(db.hotkey.shadow))
 		end
 	end
+
+    NormalizeAdditionalHotkeyVisual(button, hotkey)
+end
+
+local function RefreshAdditionalBarHotkeys()
+    -- Stance/shapeshift buttons
+    for index = 1, NUM_SHAPESHIFT_SLOTS do
+        local button = _G['ShapeshiftButton' .. index]
+        if button then
+            actionbuttons_hotkey(button)
+        end
+    end
+
+    -- Pet buttons
+    for index = 1, NUM_PET_ACTION_SLOTS do
+        local button = _G['PetActionButton' .. index]
+        if button then
+            actionbuttons_hotkey(button)
+        end
+    end
+
+    -- Possess buttons
+    for index = 1, NUM_POSSESS_SLOTS do
+        local button = _G['PossessButton' .. index]
+        if button then
+            actionbuttons_hotkey(button)
+        end
+    end
+
+    -- Totem/multicast action buttons
+    for index = 1, 12 do
+        local button = _G['MultiCastActionButton' .. index]
+        if button then
+            actionbuttons_hotkey(button)
+        end
+    end
+
+    if _G.MultiCastSummonSpellButton then
+        actionbuttons_hotkey(_G.MultiCastSummonSpellButton)
+    end
+
+    if _G.MultiCastRecallSpellButton then
+        actionbuttons_hotkey(_G.MultiCastRecallSpellButton)
+    end
+end
+
+function addon.RefreshAdditionalBarHotkeys()
+    if not IsModuleEnabled() then return end
+    RefreshAdditionalBarHotkeys()
 end
 
 local function StoreOriginalButtonState(button)
@@ -531,7 +774,12 @@ local function actionbuttons_update(button)
     if addon.KeyBindingModule and addon.KeyBindingModule.enabled and LibStub and LibStub("LibKeyBound-1.0") then
         local LibKeyBound = LibStub("LibKeyBound-1.0")
         if LibKeyBound:IsShown() then
-            return -- Skip updates during keybinding mode
+            if button and button.GetName then
+                local macroText = _G[button:GetName() .. 'Name']
+                if macroText then
+                    macroText:Hide()
+                end
+            end
         end
     end
     
@@ -600,6 +848,8 @@ function addon.RefreshButtons()
             end
         end
     end
+
+    RefreshAdditionalBarHotkeys()
 end
 
 -- ============================================================================
@@ -621,6 +871,55 @@ function addon.vehiclebuttons_template(skipCombatGuard)
 			end
 		end
 	end
+
+    RefreshAdditionalBarHotkeys()
+end
+
+function addon.RefreshAllHotkeys(suppressRangeIndicator)
+    if not IsModuleEnabled() then return end
+
+    if suppressRangeIndicator and GetTime then
+        ButtonsModule.rangeIndicatorSuppressedUntil = GetTime() + 0.35
+    end
+
+    for button in addon.buttons_iterator() do
+        if button then
+            actionbuttons_hotkey(button)
+        end
+    end
+
+    RefreshAdditionalBarHotkeys()
+end
+
+function addon.SetKeybindVisualMode(active)
+    if not IsModuleEnabled() then return end
+
+    for button in addon.buttons_iterator() do
+        if button and button.GetName then
+            local macroText = _G[button:GetName() .. 'Name']
+            if macroText then
+                if active then
+                    macroText:Hide()
+                else
+                    local db = GetButtonsConfig()
+                    if db and db.macros and db.macros.show then
+                        macroText:Show()
+                    else
+                        macroText:Hide()
+                    end
+                end
+            end
+
+            -- Keep DragonUI border texture stable while LibKeyBound is active.
+            if active then
+                button:SetNormalTexture(config.assets.normal)
+            end
+        end
+    end
+
+    if not active then
+        addon.RefreshButtons()
+    end
 end
 
 -- setup possess buttons
@@ -636,6 +935,8 @@ end
 -- The multicast module handles positioning only; modifying textures here
 -- caused invisibility issues with Blizzard's multicast bar.
 function addon.totembuttons_template()
+    if not IsModuleEnabled() then return end
+    RefreshAdditionalBarHotkeys()
 end
 
 -- setup pet action buttons
@@ -674,6 +975,22 @@ local function SetupHooks()
     if ButtonsModule.hooked or not IsModuleEnabled() then return end
     
     hooksecurefunc('ActionButton_Update', actionbuttons_update)
+
+    if type(_G.ActionButton_UpdateHotkeys) == 'function' then
+        hooksecurefunc('ActionButton_UpdateHotkeys', function(button)
+            if not IsModuleEnabled() then return end
+            if button then
+                actionbuttons_hotkey(button)
+            end
+        end)
+    end
+
+    if type(_G.PetActionButton_SetHotkeys) == 'function' then
+        hooksecurefunc('PetActionButton_SetHotkeys', function()
+            if not IsModuleEnabled() then return end
+            RefreshAdditionalBarHotkeys()
+        end)
+    end
 
     -- cache border color to avoid repeated config access
     local cachedBorderColor = nil
@@ -735,6 +1052,7 @@ function addon.RefreshButtonStyling()
         addon.possessbuttons_template()
         addon.petbuttons_template()
         addon.stancebuttons_template()
+        addon.totembuttons_template()
         
         -- Refresh button states
         addon.RefreshButtons()
@@ -801,46 +1119,7 @@ initFrame:SetScript("OnEvent", function(self, event, addonName)
     elseif event == "UPDATE_BINDINGS" then
         -- ORIGINAL PATTERN: Update hotkeys when bindings change
         if IsModuleEnabled() then
-            -- Main action buttons
-            for button in addon.buttons_iterator() do
-                if button then
-                    actionbuttons_hotkey(button)
-                end
-            end
-            
-            -- Vehicle buttons
-            if UnitHasVehicleUI('player') then
-                for index=1, VEHICLE_MAX_ACTIONBUTTONS do
-                    local button = _G['VehicleMenuBarActionButton'..index]
-                    if button then
-                        actionbuttons_hotkey(button)
-                    end
-                end
-            end
-            
-            -- Pet buttons
-            for index=1, NUM_PET_ACTION_SLOTS do
-                local button = _G['PetActionButton'..index]
-                if button then
-                    actionbuttons_hotkey(button)
-                end
-            end
-            
-            -- Stance buttons
-            for index=1, NUM_SHAPESHIFT_SLOTS do
-                local button = _G['ShapeshiftButton'..index]
-                if button then
-                    actionbuttons_hotkey(button)
-                end
-            end
-            
-            -- Possess buttons
-            for index=1, NUM_POSSESS_SLOTS do
-                local button = _G['PossessButton'..index]
-                if button then
-                    actionbuttons_hotkey(button)
-                end
-            end
+            addon.RefreshAllHotkeys(true)
         end
     end
 end)

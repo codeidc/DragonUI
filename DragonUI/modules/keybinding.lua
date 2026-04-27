@@ -226,10 +226,18 @@ end
 -- ============================================================================
 
 function KeyBindingModule:LIBKEYBOUND_ENABLED()
+    if addon.SetKeybindVisualMode then
+        addon.SetKeybindVisualMode(true)
+    end
     print("|cFF00FF00[DragonUI KeyBind]|r " .. L["Keybinding mode activated. Hover over buttons and press keys to bind them."])
 end
 
 function KeyBindingModule:LIBKEYBOUND_DISABLED()
+    if addon.SetKeybindVisualMode then
+        addon.SetKeybindVisualMode(false)
+    elseif addon.RefreshButtons then
+        addon.RefreshButtons()
+    end
     print("|cFF00FF00[DragonUI KeyBind]|r " .. L["Keybinding mode deactivated."])
 end
 
@@ -243,6 +251,13 @@ end
 function KeyBindingModule:AutoRegisterActionButtons()
     if not self.enabled then
         return
+    end
+
+    local function ResolveBindingCommand(command, fallbackClick)
+        if command and _G["BINDING_NAME_" .. command] then
+            return command
+        end
+        return fallbackClick
     end
 
     -- Register main action buttons
@@ -276,6 +291,45 @@ function KeyBindingModule:AutoRegisterActionButtons()
                 self:MakeButtonBindable(button, mapping.binding .. i, mapping.name .. " " .. i)
             end
         end
+    end
+
+    -- Register stance/shapeshift buttons
+    for i = 1, (NUM_SHAPESHIFT_SLOTS or 10) do
+        local button = _G["ShapeshiftButton" .. i]
+        if button and not self.registeredButtons[button] then
+            local binding = ResolveBindingCommand("SHAPESHIFTBUTTON" .. i, "CLICK ShapeshiftButton" .. i .. ":LeftButton")
+            self:MakeButtonBindable(button, binding, string.format(L["Stance Button %d"] or "Stance Button %d", i))
+        end
+    end
+
+    -- Register pet action buttons (Wrath commonly maps these to BONUSACTIONBUTTON)
+    for i = 1, (NUM_PET_ACTION_SLOTS or 10) do
+        local button = _G["PetActionButton" .. i]
+        if button and not self.registeredButtons[button] then
+            local binding = ResolveBindingCommand("BONUSACTIONBUTTON" .. i, "CLICK PetActionButton" .. i .. ":LeftButton")
+            self:MakeButtonBindable(button, binding, string.format(L["Pet Action Button %d"] or "Pet Action Button %d", i))
+        end
+    end
+
+    -- Register multicast/totem action buttons (Shaman)
+    for i = 1, 12 do
+        local button = _G["MultiCastActionButton" .. i]
+        if button and not self.registeredButtons[button] then
+            local binding = ResolveBindingCommand("MULTICASTACTIONBUTTON" .. i, "CLICK MultiCastActionButton" .. i .. ":LeftButton")
+            self:MakeButtonBindable(button, binding, string.format(L["Multicast Button %d"] or "Multicast Button %d", i))
+        end
+    end
+
+    local summonButton = _G.MultiCastSummonSpellButton
+    if summonButton and not self.registeredButtons[summonButton] then
+        local binding = ResolveBindingCommand("MULTICASTSUMMONSPELL", "CLICK MultiCastSummonSpellButton:LeftButton")
+        self:MakeButtonBindable(summonButton, binding, L["Totem Call Button"] or "Totem Call Button")
+    end
+
+    local recallButton = _G.MultiCastRecallSpellButton
+    if recallButton and not self.registeredButtons[recallButton] then
+        local binding = ResolveBindingCommand("MULTICASTRECALLSPELL", "CLICK MultiCastRecallSpellButton:LeftButton")
+        self:MakeButtonBindable(recallButton, binding, L["Totem Recall Button"] or "Totem Recall Button")
     end
 end
 

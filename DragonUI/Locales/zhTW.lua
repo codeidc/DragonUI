@@ -36,6 +36,11 @@ L["Hide Gryphons"] = "隱藏獅鷲"
 L["Understood"] = "知道了"
 L["Buttons"] = "按鈕"
 L["Main Bars"] = "主動作條"
+L["Stance Button %d"] = true
+L["Pet Action Button %d"] = true
+L["Multicast Button %d"] = true
+L["Totem Call Button"] = true
+L["Totem Recall Button"] = true
 
 L["Copy Text"] = "複製文字"
 

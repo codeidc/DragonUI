@@ -14,6 +14,16 @@ local LO = addon.LO
 local C = addon.PanelControls
 local Panel = addon.OptionsPanel
 
+local function RefreshAdditionalBarHotkeys()
+    if addon.RefreshAdditionalBarHotkeys then
+        addon.RefreshAdditionalBarHotkeys()
+    elseif addon.RefreshAllHotkeys then
+        addon.RefreshAllHotkeys()
+    elseif addon.RefreshButtons then
+        addon.RefreshButtons()
+    end
+end
+
 -- ============================================================================
 -- ADDITIONAL BARS TAB BUILDER
 -- ============================================================================
@@ -25,6 +35,12 @@ local function BuildAdditionalBarsTab(scroll)
     -- STANCE BAR
     -- ====================================================================
     local stance = C:AddSection(scroll, LO["Stance Bar"])
+
+    C:AddToggle(stance, {
+        label = LO["Show Hotkey Text"],
+        dbPath = "additional.stance.show_hotkey",
+        callback = RefreshAdditionalBarHotkeys,
+    })
 
     C:AddSlider(stance, {
         label = LO["Button Size"],
@@ -52,11 +68,9 @@ local function BuildAdditionalBarsTab(scroll)
     local pet = C:AddSection(scroll, LO["Pet Bar"])
 
     C:AddToggle(pet, {
-        label = LO["Show Empty Slots"],
-        dbPath = "additional.pet.grid",
-        callback = function()
-            if addon.RefreshPetbarFrame then addon.RefreshPetbarFrame() end
-        end,
+        label = LO["Show Hotkey Text"],
+        dbPath = "additional.pet.show_hotkey",
+        callback = RefreshAdditionalBarHotkeys,
     })
 
     C:AddSlider(pet, {
@@ -85,6 +99,12 @@ local function BuildAdditionalBarsTab(scroll)
     -- TOTEM BAR
     -- ====================================================================
     local totem = C:AddSection(scroll, LO["Totem Bar (Shaman)"])
+
+    C:AddToggle(totem, {
+        label = LO["Show Hotkey Text"],
+        dbPath = "additional.totem.show_hotkey",
+        callback = RefreshAdditionalBarHotkeys,
+    })
 
     C:AddSlider(totem, {
         label = LO["Button Size"],
