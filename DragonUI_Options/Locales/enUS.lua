@@ -371,7 +371,6 @@ L["Micro Menu"] = true
 L["Loot Roll"] = true
 L["Key Binding"] = true
 L["Item Quality"] = true
-L["Buff Frame"] = true
 L["Hide Blizzard"] = true
 L["Tooltip"] = true
 
@@ -386,7 +385,6 @@ L["LibKeyBound integration for intuitive keybinding"] = true
 L["Color item borders by quality in bags, character panel, bank, and merchant"] = true
 L["Darken UI borders and chrome"] = true
 L["Action button styling and enhancements"] = true
-L["Custom buff frame styling, positioning and toggle button"] = true
 L["Vehicle interface enhancements"] = true
 L["Stance/shapeshift bar positioning and styling"] = true
 L["Pet action bar positioning and styling"] = true

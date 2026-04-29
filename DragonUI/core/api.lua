@@ -61,6 +61,29 @@ local function ApplyMissingDefaults(source, target)
     end
 end
 
+-- Register unit-filtered events when supported by the client; otherwise fall
+-- back to RegisterEvent for compatibility across 3.3.5a variants.
+function addon.RegisterUnitEventSafe(frame, eventName, ...)
+    if not frame or not eventName then
+        return false
+    end
+
+    local hasUnitToken = false
+    for i = 1, select("#", ...) do
+        if select(i, ...) ~= nil then
+            hasUnitToken = true
+            break
+        end
+    end
+
+    if type(frame.RegisterUnitEvent) == "function" and hasUnitToken then
+        return frame:RegisterUnitEvent(eventName, ...)
+    end
+
+    frame:RegisterEvent(eventName)
+    return true
+end
+
 -- ============================================================================
 -- FRAME CREATION AND MANAGEMENT
 -- ============================================================================

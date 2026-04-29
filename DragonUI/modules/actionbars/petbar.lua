@@ -389,7 +389,15 @@ local function CreateEventFrame()
     }
     
     for _, event in ipairs(events) do
-        eventFrame:RegisterEvent(event)
+        if event == 'UNIT_AURA' then
+            if addon.RegisterUnitEventSafe then
+                addon.RegisterUnitEventSafe(eventFrame, 'UNIT_AURA', 'pet')
+            else
+                eventFrame:RegisterEvent(event)
+            end
+        else
+            eventFrame:RegisterEvent(event)
+        end
         PetbarModule.registeredEvents[event] = true
     end
     

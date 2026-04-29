@@ -30,6 +30,37 @@ local static_fonts = {
 	cooldown_font = {_actionbarFont, 14, 'OUTLINE'},
 };
 
+local function GetProfileValue(section, key, subkey)
+	local db = addon.db
+	if not (db and db.profile) then
+		return nil
+	end
+
+	local sectionTable = db.profile[section]
+	if sectionTable == nil then
+		return nil
+	end
+
+	if key == nil then
+		return sectionTable
+	end
+
+	local keyValue = sectionTable[key]
+	if keyValue == nil then
+		return nil
+	end
+
+	if subkey == nil then
+		return keyValue
+	end
+
+	if type(keyValue) ~= "table" then
+		return nil
+	end
+
+	return keyValue[subkey]
+end
+
 -- Config wrapper: routes access through metatables to database or static values
 addon.config = {};
 
@@ -58,7 +89,7 @@ setmetatable(addon.config, {
 								elseif ckey == "position" then
 									return {'BOTTOMRIGHT', 2, -1};
 								else
-									return addon.db and addon.db.profile[section][key][ckey];
+									return GetProfileValue(section, key, ckey);
 								end
 							end
 						});
@@ -70,7 +101,7 @@ setmetatable(addon.config, {
 								if hkey == "font" then
 									return static_fonts.hotkey_font;
 								else
-									return addon.db and addon.db.profile[section][key][hkey];
+									return GetProfileValue(section, key, hkey);
 								end
 							end
 						});
@@ -82,7 +113,7 @@ setmetatable(addon.config, {
 								if mkey == "font" then
 									return static_fonts.macros_font;
 								else
-									return addon.db and addon.db.profile[section][key][mkey];
+									return GetProfileValue(section, key, mkey);
 								end
 							end
 						});
@@ -94,7 +125,7 @@ setmetatable(addon.config, {
 								if pkey == "font" then
 									return static_fonts.pages_font;
 								else
-									return addon.db and addon.db.profile[section][key][pkey];
+									return GetProfileValue(section, key, pkey);
 								end
 							end
 						});
@@ -108,7 +139,7 @@ setmetatable(addon.config, {
 								elseif ckey == "position" then
 									return {'BOTTOM'};
 								else
-									return addon.db and addon.db.profile[section][key][ckey];
+									return GetProfileValue(section, key, ckey);
 								end
 							end
 						});
@@ -117,7 +148,7 @@ setmetatable(addon.config, {
 				end
 				
 				-- Nested table proxy (delegates to database)
-				if type(addon.db and addon.db.profile[section] and addon.db.profile[section][key]) == "table" then
+				if type(GetProfileValue(section, key)) == "table" then
 					local nested_proxy = {};
 					setmetatable(nested_proxy, {
 						__index = function(npt, nkey)
@@ -125,13 +156,13 @@ setmetatable(addon.config, {
 							if section == "additional" and key == "vehicle" and nkey == "position" then
 								return {'BOTTOMLEFT', -52, 0};
 							end
-							return addon.db and addon.db.profile[section][key][nkey];
+							return GetProfileValue(section, key, nkey);
 						end
 					});
 					return nested_proxy;
 				end
 				
-				return addon.db and addon.db.profile[section][key];
+				return GetProfileValue(section, key);
 			end
 		});
 		return proxy;

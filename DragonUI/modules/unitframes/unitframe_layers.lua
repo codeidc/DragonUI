@@ -417,7 +417,7 @@ local function UnitFrameLayer_Initialize(self, myHealPredictionBar, otherHealPre
 	self.healAbsorbBarRightShadow:ClearAllPoints();
 
 	self:RegisterEvent("UNIT_MAXHEALTH");
-	self:RegisterEvent("UNIT_AURA");
+	addon.RegisterUnitEventSafe(self, "UNIT_AURA", self.unit);
 	EnsureLibs();
 	UnitFrame_RegisterCallback(self);
 

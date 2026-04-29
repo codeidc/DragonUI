@@ -28,6 +28,8 @@ local Movers = {
     created = {},
     -- Disabled movers (for modules that are turned off)
     disabled = {},
+    -- Movers that requested position load during combat
+    pendingLoad = {},
     -- Is config/editor mode active?
     configMode = false,
     -- Currently dragging?
@@ -90,6 +92,24 @@ local function CalculateMoverPoints(mover)
     end
 
     return math.floor(x + 0.5), math.floor(y + 0.5), point
+end
+
+-- Retry deferred loads once combat ends
+local function EnsureCombatRetryHandler()
+    if Movers.pendingCombatFrame then
+        return
+    end
+
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    frame:SetScript("OnEvent", function()
+        for name in pairs(Movers.pendingLoad) do
+            Movers.pendingLoad[name] = nil
+            Movers:LoadPosition(name)
+        end
+    end)
+
+    Movers.pendingCombatFrame = frame
 end
 
 -- ============================================================================
@@ -321,6 +341,12 @@ end
 function Movers:LoadPosition(name)
     local data = self.created[name]
     if not data or not data.mover then return end
+
+    if InCombatLockdown() then
+        self.pendingLoad[name] = true
+        EnsureCombatRetryHandler()
+        return
+    end
     
     local mover = data.mover
     local pointString
@@ -351,6 +377,8 @@ function Movers:LoadPosition(name)
         mover:ClearAllPoints()
         mover:SetPoint(point, UIParent, relativePoint, x, y)
     end
+
+    self.pendingLoad[name] = nil
 end
 
 -- Reset mover to default position

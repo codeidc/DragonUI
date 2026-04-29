@@ -213,6 +213,7 @@ local function BuildModulesTab(scroll)
             player = true,
             boss = true,
             rage_indicator = true,
+            buffs = true,
         }
 
         for _, moduleName in ipairs(MR.loadOrder) do
@@ -247,7 +248,6 @@ local function BuildModulesTab(scroll)
             { key = "cooldowns",   name = LO["Cooldowns"] },
             { key = "auracooldowns", name = LO["Target & Focus Aura Customization"] },
             { key = "minimap",     name = LO["Minimap"] },
-            { key = "buffs",       name = LO["Buffs"] },
             { key = "keybinding",  name = LO["KeyBinding"] },
             { key = "questtracker", name = LO["Quest Tracker"] },
         }

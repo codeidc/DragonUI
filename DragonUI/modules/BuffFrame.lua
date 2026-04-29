@@ -626,7 +626,7 @@ function BuffFrameModule:Enable()
     if not buffFrame then
         buffFrame = CreateFrame("Frame")
         buffFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-        buffFrame:RegisterEvent("UNIT_AURA")
+        addon.RegisterUnitEventSafe(buffFrame, "UNIT_AURA", "player", "vehicle")
         buffFrame:RegisterEvent("UNIT_ENTERED_VEHICLE")
         buffFrame:RegisterEvent("UNIT_EXITED_VEHICLE")
         
