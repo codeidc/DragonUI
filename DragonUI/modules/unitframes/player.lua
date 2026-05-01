@@ -147,6 +147,8 @@ local RUNE_COORDS = {
     [3] = {34 / 128, 68 / 128, 0 / 128, 34 / 128}, -- Frost
     [4] = {68 / 128, 102 / 128, 0 / 128, 34 / 128} -- Death
 }
+local RUNE_TYPE_DEATH = 4
+local DEATH_RUNE_COORDS = RUNE_COORDS[3]
 
 -- LFG Role icon coordinates
 local ROLE_COORDS = {
@@ -783,8 +785,16 @@ local function UpdateRune(button)
     if runeType and RUNE_COORDS[runeType] then
         local runeTexture = _G[button:GetName() .. "Rune"]
         if runeTexture then
-            runeTexture:SetTexture(TEXTURES.RUNE_TEXTURE)
-            runeTexture:SetTexCoord(unpack(RUNE_COORDS[runeType]))
+            local texture = TEXTURES.RUNE_TEXTURE
+            local coords = RUNE_COORDS[runeType]
+
+            if runeType == RUNE_TYPE_DEATH then
+                texture = TEXTURES.RUNE_TEXTURE_PURPLE
+                coords = DEATH_RUNE_COORDS
+            end
+
+            runeTexture:SetTexture(texture)
+            runeTexture:SetTexCoord(unpack(coords))
         end
     end
 end

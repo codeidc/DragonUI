@@ -49,6 +49,7 @@ UF.TEXTURES = {
         BORDER_FAT    = "Interface\\Addons\\DragonUI\\Textures\\UI-HUD-UnitFrame-Player-PortraitOn-BORDER-Fat",
         REST_ICON     = "Interface\\AddOns\\DragonUI\\Textures\\PlayerFrame\\PlayerRestFlipbook",
         RUNE_TEXTURE  = "Interface\\AddOns\\DragonUI\\Textures\\PlayerFrame\\ClassOverlayDeathKnightRunes",
+        RUNE_TEXTURE_PURPLE = "Interface\\AddOns\\DragonUI\\Textures\\PlayerFrame\\ClassOverlayDeathKnightRunes_Purple",
         LFG_ICONS     = "Interface\\AddOns\\DragonUI\\Textures\\PlayerFrame\\LFGRoleIcons",
         POWER_BARS = {
             MANA        = "Interface\\Addons\\DragonUI\\Textures\\Unitframe\\UI-HUD-UnitFrame-Player-PortraitOn-Bar-Mana",
