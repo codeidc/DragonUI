@@ -5,6 +5,8 @@ local format = string.format
 local GetTime = GetTime
 local hooksecurefunc = hooksecurefunc
 local abs = math.abs
+local UnitBuff = UnitBuff
+local UnitDebuff = UnitDebuff
 
 -- ============================================================================
 -- DragonUI - Aura Cooldown Text Module
@@ -378,7 +380,7 @@ local function RegisterEvent(frame, event)
     table.insert(AuraCooldownsModule.registeredEvents, { frame = frame, event = event })
 end
 
-local function TrackCooldown(cooldown)
+local function TrackCooldown(cooldown, start, duration)
     if not cooldown then return end
 
     AuraCooldownsModule.frames.trackedCooldowns = AuraCooldownsModule.frames.trackedCooldowns or {}
@@ -393,22 +395,59 @@ local function TrackCooldown(cooldown)
         cooldown._duiAuraCooldownHooked = true
     end
 
-    if cooldown.GetCooldown then
-        local start, duration = cooldown:GetCooldown()
-        cooldown._duiAuraStart = start or 0
-        cooldown._duiAuraDuration = duration or 0
-    end
+    cooldown._duiAuraStart = start or 0
+    cooldown._duiAuraDuration = duration or 0
 
     UpdateCooldownText(cooldown)
 end
 
+local function GetUnitTokenForFrame(frameName)
+    if frameName == "TargetFrame" then
+        return "target"
+    elseif frameName == "FocusFrame" then
+        return "focus"
+    end
+    return nil
+end
+
+local function GetAuraTiming(unitToken, index, isDebuff)
+    if not unitToken then
+        return 0, 0
+    end
+
+    local duration
+    local expirationTime
+    if isDebuff then
+        _, _, _, _, _, duration, expirationTime = UnitDebuff(unitToken, index, "INCLUDE_NAME_PLATE_ONLY")
+    else
+        _, _, _, _, _, duration, expirationTime = UnitBuff(unitToken, index)
+    end
+
+    duration = duration or 0
+    expirationTime = expirationTime or 0
+    if duration <= 0 or expirationTime <= 0 then
+        return 0, 0
+    end
+
+    local start = expirationTime - duration
+    if start < 0 then
+        start = 0
+    end
+
+    return start, duration
+end
+
 local function ScanAuraCooldownsForFrame(frameName)
+    local unitToken = GetUnitTokenForFrame(frameName)
+
     for i = 1, MAX_AURA_BUFFS do
-        TrackCooldown(_G[frameName .. "Buff" .. i .. "Cooldown"])
+        local start, duration = GetAuraTiming(unitToken, i, false)
+        TrackCooldown(_G[frameName .. "Buff" .. i .. "Cooldown"], start, duration)
     end
 
     for i = 1, MAX_AURA_DEBUFFS do
-        TrackCooldown(_G[frameName .. "Debuff" .. i .. "Cooldown"])
+        local start, duration = GetAuraTiming(unitToken, i, true)
+        TrackCooldown(_G[frameName .. "Debuff" .. i .. "Cooldown"], start, duration)
     end
 end
 
@@ -461,14 +500,23 @@ local function RegisterModuleEvents()
     end
 
     local eventFrame = CreateFrame("Frame")
-    eventFrame:SetScript("OnEvent", function()
+    eventFrame:SetScript("OnEvent", function(_, event, unit)
+        if event == "UNIT_AURA" then
+            if unit == "target" then
+                ScanAuraCooldownsForFrame("TargetFrame")
+            elseif unit == "focus" then
+                ScanAuraCooldownsForFrame("FocusFrame")
+            end
+            return
+        end
+
         ScanAllAuraCooldowns()
-        UpdateAllTrackedCooldowns()
     end)
 
     RegisterEvent(eventFrame, "PLAYER_ENTERING_WORLD")
     RegisterEvent(eventFrame, "PLAYER_TARGET_CHANGED")
     RegisterEvent(eventFrame, "PLAYER_FOCUS_CHANGED")
+    RegisterEvent(eventFrame, "UNIT_AURA")
 
     AuraCooldownsModule.frames.eventFrame = eventFrame
 end
@@ -478,7 +526,6 @@ function addon.ApplyAuraCooldownTextSystem()
 
     if AuraCooldownsModule.applied then
         ScanAllAuraCooldowns()
-        UpdateAllTrackedCooldowns()
         if TargetFrame and TargetFrame_UpdateAuras then
             pcall(TargetFrame_UpdateAuras, TargetFrame)
         end
@@ -494,7 +541,6 @@ function addon.ApplyAuraCooldownTextSystem()
     AuraCooldownsModule.applied = true
 
     ScanAllAuraCooldowns()
-    UpdateAllTrackedCooldowns()
 
     if TargetFrame and TargetFrame_UpdateAuras then
         pcall(TargetFrame_UpdateAuras, TargetFrame)
