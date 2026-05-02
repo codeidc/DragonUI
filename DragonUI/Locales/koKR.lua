@@ -168,6 +168,8 @@ L["Quest Tracker"] = "퀘스트 추적기"
 -- Mover tooltip strings
 L["Drag to move"] = "드래그 이동"
 L["Right-click to reset"] = "우클릭으로 초기화"
+L["Error Messages"] = "오류 메시지"
+L["ErrorMessages"] = "오류 메시지"
 
 -- Editor mode system messages
 L["All editable frames shown for editing"] = "편집을 위해 모든 프레임을 표시합니다."

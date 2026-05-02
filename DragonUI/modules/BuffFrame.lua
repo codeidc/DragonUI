@@ -67,6 +67,16 @@ local function IsWeaponEnchantAtDefaultPosition()
     return not addon.db.profile.widgets.weapon_enchants.custom_position
 end
 
+local function GetBuffHorizontalGap()
+    local cfg = addon.db and addon.db.profile and addon.db.profile.buffs
+    return (cfg and tonumber(cfg.buff_horizontal_gap)) or 0
+end
+
+local function GetDebuffHorizontalGap()
+    local cfg = addon.db and addon.db.profile and addon.db.profile.buffs
+    return (cfg and tonumber(cfg.debuff_horizontal_gap)) or 0
+end
+
 -- Default weapon enchant frame position
 local WEAPON_DEFAULT_ANCHOR = "TOPRIGHT"
 local WEAPON_DEFAULT_POSX = -270
@@ -473,7 +483,65 @@ function BuffFrameModule:Enable()
                 -- No buffs visible — anchor directly below the buff frame
                 firstDebuff:SetPoint("TOPRIGHT", dragonUIBuffFrame, "BOTTOMRIGHT", 0, -60)
             end
+
+            local debuffGap = GetDebuffHorizontalGap()
+            if debuffGap > 0 then
+                local previousDebuff = firstDebuff
+                for index = 2, (DEBUFF_MAX_DISPLAY or 16) do
+                    local debuff = _G["DebuffButton" .. index]
+                    if debuff and debuff:IsShown() then
+                        debuff:ClearAllPoints()
+                        debuff:SetPoint("TOPRIGHT", previousDebuff, "TOPLEFT", -(6 + debuffGap), 0)
+                        previousDebuff = debuff
+                    end
+                end
+            end
         end
+    end
+
+    local function ApplyBuffHorizontalGap()
+        local buffGap = GetBuffHorizontalGap()
+        if buffGap <= 0 then return end
+
+        local perRow = BUFFS_PER_ROW or 16
+        local slack = weaponEnchantsAreSeparated and 0 or (BuffFrame.numEnchants or 0)
+        local count = 0
+        local previousBuff = nil
+        local rowStarts = {}
+
+        for index = 1, BUFF_ACTUAL_DISPLAY do
+            local button = _G["BuffButton" .. index]
+            if button and button:IsShown() and not button.consolidated then
+                count = count + 1
+                local layoutIndex = count + slack
+                local row = math.floor((layoutIndex - 1) / perRow) + 1
+                local column = math.fmod(layoutIndex - 1, perRow) + 1
+
+                if count == 1 then
+                    rowStarts[row] = button
+                elseif column == 1 then
+                    local previousRowStart = rowStarts[row - 1] or rowStarts[1] or previousBuff
+                    if previousRowStart then
+                        button:ClearAllPoints()
+                        button:SetPoint("TOPRIGHT", previousRowStart, "BOTTOMRIGHT", 0, -15)
+                    end
+                    rowStarts[row] = button
+                elseif previousBuff then
+                    button:ClearAllPoints()
+                    button:SetPoint("TOPRIGHT", previousBuff, "TOPLEFT", -(6 + buffGap), 0)
+                end
+
+                previousBuff = button
+            end
+        end
+    end
+
+    function BuffFrameModule:RefreshAuraSpacing()
+        if BuffFrame_UpdateAllBuffAnchors then
+            BuffFrame_UpdateAllBuffAnchors()
+        end
+        self:UpdatePosition()
+        FixDebuffPositions()
     end
 
     -- ========================================================================
@@ -534,6 +602,8 @@ function BuffFrameModule:Enable()
                     end
                 end
             end
+
+            ApplyBuffHorizontalGap()
 
             -- 3) Respect buff toggle: re-hide buffs if user collapsed them
             if buffsHiddenByToggle then

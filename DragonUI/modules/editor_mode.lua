@@ -12,6 +12,106 @@ addon.EditorMode = EditorMode;
 local gridOverlay = nil;
 local exitEditorButton = nil;
 local resetAllButton = nil;
+local errorMessagesMover = nil;
+local errorMessagesPositionHooked = false;
+
+local function GetWidgetConfig(widgetName)
+    return addon.db and addon.db.profile and addon.db.profile.widgets and addon.db.profile.widgets[widgetName]
+end
+
+local function ApplyErrorMessagesPosition()
+    local cfg = GetWidgetConfig("errorMessages")
+    if not UIErrorsFrame or not cfg or not cfg.custom_position then
+        return
+    end
+
+    if UIPARENT_MANAGED_FRAME_POSITIONS and UIPARENT_MANAGED_FRAME_POSITIONS.UIErrorsFrame then
+        UIErrorsFrame.ignoreFramePositionManager = true
+    end
+
+    if UIErrorsFrame.SetUserPlaced and (UIErrorsFrame:IsMovable() or UIErrorsFrame:IsResizable()) then
+        UIErrorsFrame:SetUserPlaced(nil)
+    end
+
+    UIErrorsFrame:ClearAllPoints()
+    UIErrorsFrame:SetPoint(cfg.anchor or "CENTER", UIParent, cfg.anchor or "CENTER", cfg.posX or 0, cfg.posY or 160)
+end
+
+addon.ApplyErrorMessagesPosition = ApplyErrorMessagesPosition
+
+local function PersistErrorMessagesMoverPosition()
+    if not errorMessagesMover or not addon.db or not addon.db.profile then
+        return
+    end
+
+    addon.db.profile.widgets = addon.db.profile.widgets or {}
+    addon.db.profile.widgets.errorMessages = addon.db.profile.widgets.errorMessages or {}
+
+    local cx, cy = errorMessagesMover:GetCenter()
+    local ux, uy = UIParent:GetCenter()
+    if not (cx and cy and ux and uy) then
+        return
+    end
+
+    local cfg = addon.db.profile.widgets.errorMessages
+    cfg.anchor = "CENTER"
+    cfg.posX = math.floor((cx - ux) + 0.5)
+    cfg.posY = math.floor((cy - uy) + 0.5)
+    cfg.custom_position = true
+end
+
+local function SetupErrorMessagesMover()
+    if errorMessagesMover or not addon.CreateUIFrame then
+        return
+    end
+
+    errorMessagesMover = addon.CreateUIFrame(420, 90, "ErrorMessages")
+    errorMessagesMover:HookScript("OnDragStop", function(self)
+        self.DragonUI_WasDragged = true
+        PersistErrorMessagesMoverPosition()
+        ApplyErrorMessagesPosition()
+    end)
+
+    if errorMessagesMover.editorText then
+        errorMessagesMover.editorText:SetText((L and L["Error Messages"]) or "Error Messages")
+    end
+
+    addon:RegisterEditableFrame({
+        name = "errorMessages",
+        frame = errorMessagesMover,
+        blizzardFrame = UIErrorsFrame,
+        showTest = function()
+            local cfg = GetWidgetConfig("errorMessages")
+            errorMessagesMover:ClearAllPoints()
+            if cfg and cfg.custom_position then
+                errorMessagesMover:SetPoint(cfg.anchor or "CENTER", UIParent, cfg.anchor or "CENTER", cfg.posX or 0, cfg.posY or 160)
+            elseif UIErrorsFrame then
+                errorMessagesMover:SetPoint("CENTER", UIErrorsFrame, "CENTER", 0, 0)
+            else
+                errorMessagesMover:SetPoint("CENTER", UIParent, "CENTER", 0, 160)
+            end
+            errorMessagesMover:Show()
+        end,
+        onHide = function()
+            if errorMessagesMover.DragonUI_WasDragged or errorMessagesMover.DragonUI_WasAdjustedByEditor then
+                PersistErrorMessagesMoverPosition()
+                errorMessagesMover.DragonUI_WasDragged = nil
+                errorMessagesMover.DragonUI_WasAdjustedByEditor = nil
+            end
+            ApplyErrorMessagesPosition()
+        end,
+        module = EditorMode
+    })
+
+    if not errorMessagesPositionHooked then
+        errorMessagesPositionHooked = true
+        if UIParent_ManageFramePositions then
+            hooksecurefunc("UIParent_ManageFramePositions", function()
+                ApplyErrorMessagesPosition()
+            end)
+        end
+    end
+end
 
 -- StaticPopup to reload UI after exiting editor mode
 StaticPopupDialogs["DRAGONUI_RELOAD_UI"] = {
@@ -208,6 +308,7 @@ function EditorMode:Show()
     createGridOverlay()
     createExitButton()
     createResetAllButton()
+    SetupErrorMessagesMover()
     gridOverlay:Show()
     exitEditorButton:Show()
     resetAllButton:Show()
@@ -232,6 +333,13 @@ function EditorMode:Show()
     
     
 end
+
+local errorFrameInit = CreateFrame("Frame")
+errorFrameInit:RegisterEvent("PLAYER_ENTERING_WORLD")
+errorFrameInit:SetScript("OnEvent", function()
+    SetupErrorMessagesMover()
+    ApplyErrorMessagesPosition()
+end)
 
 
 function EditorMode:Hide(showReloadPopup)

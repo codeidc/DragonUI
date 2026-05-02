@@ -169,6 +169,8 @@ L["Quest Tracker"] = true
 -- Mover tooltip strings
 L["Drag to move"] = true
 L["Right-click to reset"] = true
+L["Error Messages"] = true
+L["ErrorMessages"] = true
 
 -- Editor mode system messages
 L["All editable frames shown for editing"] = true

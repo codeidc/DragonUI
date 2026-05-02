@@ -151,6 +151,12 @@ local defaults = {
                 anchor = "BOTTOMRIGHT",
                 posX = -90,
                 posY = 100
+            },
+            errorMessages = {
+                anchor = "CENTER",
+                posX = 0,
+                posY = 160,
+                custom_position = false
             }
         },
         -- Quest Tracker
@@ -381,7 +387,9 @@ local defaults = {
             enabled = true,
             show_toggle_button = true,
             buffs_hidden = false,
-            separate_weapon_enchants = false
+            separate_weapon_enchants = false,
+            buff_horizontal_gap = 0,
+            debuff_horizontal_gap = 0
         },
 
         -- CASTBAR SETTINGS

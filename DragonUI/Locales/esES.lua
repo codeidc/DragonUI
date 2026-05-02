@@ -168,6 +168,8 @@ L["Quest Tracker"] = "Misiones"
 -- Mover tooltip strings
 L["Drag to move"] = "Arrastra para mover"
 L["Right-click to reset"] = "Clic der. para reiniciar"
+L["Error Messages"] = "Mensajes de error"
+L["ErrorMessages"] = "Mensajes de error"
 
 -- Editor mode system messages
 L["All editable frames shown for editing"] = "Marcos editables mostrados"

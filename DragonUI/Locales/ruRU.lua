@@ -168,6 +168,8 @@ L["Quest Tracker"] = "Трекер заданий"
 -- Mover tooltip strings
 L["Drag to move"] = "Перетащите для перемещения"
 L["Right-click to reset"] = "ПКМ для сброса"
+L["Error Messages"] = "Сообщения об ошибках"
+L["ErrorMessages"] = "Сообщения об ошибках"
 
 -- Editor mode system messages
 L["All editable frames shown for editing"] = "Все редактируемые фреймы показаны для редактирования"

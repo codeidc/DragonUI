@@ -20,6 +20,20 @@ local function RefreshTargetFocusAuraTimers()
     end
 end
 
+local function RefreshPlayerAuraSpacing()
+    if addon.BuffFrameModule and addon.BuffFrameModule.RefreshAuraSpacing then
+        addon.BuffFrameModule:RefreshAuraSpacing()
+        return
+    end
+
+    if BuffFrame_UpdateAllBuffAnchors then
+        BuffFrame_UpdateAllBuffAnchors()
+    end
+    if addon.BuffFrameModule then
+        addon.BuffFrameModule:UpdatePosition()
+    end
+end
+
 local AURA_ANCHORS = {
     TOP = LO["Top"],
     BOTTOM = LO["Bottom"],
@@ -190,6 +204,25 @@ local function BuildAurasTab(scroll)
 
     C:AddDescription(weaponSection,
         "|cff888888" .. LO["When enabled, a 'Weapon Enchants' mover appears in Editor Mode that you can drag to any position on screen."] .. "|r")
+
+    C:AddSpacer(scroll)
+    local playerAuraSpacingSection = C:AddSection(scroll, LO["Player Aura Spacing"])
+
+    C:AddSlider(playerAuraSpacingSection, {
+        label = LO["Buff Horizontal Gap"],
+        dbPath = "buffs.buff_horizontal_gap",
+        min = 0, max = 20, step = 1,
+        width = 220,
+        callback = RefreshPlayerAuraSpacing,
+    })
+
+    C:AddSlider(playerAuraSpacingSection, {
+        label = LO["Debuff Horizontal Gap"],
+        dbPath = "buffs.debuff_horizontal_gap",
+        min = 0, max = 20, step = 1,
+        width = 220,
+        callback = RefreshPlayerAuraSpacing,
+    })
 
     -- ====================================================================
     -- TARGET/FOCUS AURA CUSTOMIZATION
