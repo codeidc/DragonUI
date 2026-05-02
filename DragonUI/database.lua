@@ -706,7 +706,8 @@ local defaults = {
             },
             bagsort = {
                 enabled = true, -- Sort bags and bank items with buttons
-                lockedSlots = {} -- Slots excluded from sorting (key format: "bag:slot")
+                lockedSlots = {}, -- Slots excluded from sorting (key format: "bag:slot")
+                move_interval = 0.1 -- Delay between item move attempts while sorting
             },
             unitframe_layers = {
                 enabled = false, -- Heal prediction, absorb shields, animated health loss overlays on unit frames

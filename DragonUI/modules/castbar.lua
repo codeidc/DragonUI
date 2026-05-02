@@ -2207,6 +2207,17 @@ local function SyncCastbarAnchorToContainer(unitType)
     end
 end
 
+local function AnchorCastbarEditorToContainer(unitType)
+    local anchorFrame = GetCastbarAnchorFrame(unitType)
+    local frames = CastbarModule.frames[unitType]
+    if not anchorFrame or not frames or not frames.container then
+        return
+    end
+
+    anchorFrame:ClearAllPoints()
+    anchorFrame:SetPoint("CENTER", frames.container, "CENTER", 0, 0)
+end
+
 local function PersistCastbarAnchorPosition(unitType)
     local widgetKey = GetCastbarWidgetKey(unitType)
     local anchorFrame = GetCastbarAnchorFrame(unitType)
@@ -2325,7 +2336,7 @@ local function ShowCastbarTest(unitType)
     CastbarModule:RefreshCastbar(unitType)
 
     if not IsCastbarDetached(unitType) then
-        SyncCastbarAnchorToContainer(unitType)
+        AnchorCastbarEditorToContainer(unitType)
     end
 
     if frames.container then
@@ -2447,7 +2458,16 @@ local function InitializeCastbarForEditor()
     CreateFocusCastbarAnchorFrame()
 
     if CastbarModule.targetAnchor then
-        CastbarModule.targetAnchor:HookScript("OnDragStart", function()
+        local originalTargetDragStart = CastbarModule.targetAnchor:GetScript("OnDragStart")
+        CastbarModule.targetAnchor:SetScript("OnDragStart", function(self, button)
+            if not IsCastbarDetached("target") then
+                SyncCastbarAnchorToContainer("target")
+            end
+
+            if originalTargetDragStart then
+                originalTargetDragStart(self, button)
+            end
+
             local cfg = GetConfig("target")
             if cfg and not cfg.override then
                 cfg.override = true
@@ -2469,7 +2489,16 @@ local function InitializeCastbarForEditor()
     end
 
     if CastbarModule.focusAnchor then
-        CastbarModule.focusAnchor:HookScript("OnDragStart", function()
+        local originalFocusDragStart = CastbarModule.focusAnchor:GetScript("OnDragStart")
+        CastbarModule.focusAnchor:SetScript("OnDragStart", function(self, button)
+            if not IsCastbarDetached("focus") then
+                SyncCastbarAnchorToContainer("focus")
+            end
+
+            if originalFocusDragStart then
+                originalFocusDragStart(self, button)
+            end
+
             local cfg = GetConfig("focus")
             if cfg and not cfg.override then
                 cfg.override = true

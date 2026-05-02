@@ -445,10 +445,8 @@ do
             if item then
                 local start, duration, enable = GetContainerItemCooldown(bagId, slot)
                 local onCooldown = (start > 0 and duration > 0 and enable > 0)
-                if item[4] ~= onCooldown then
-                    item[4] = onCooldown
-                    sendMessage("ITEM_SLOT_UPDATE_COOLDOWN", bagId, slot)
-                end
+                item[4] = onCooldown
+                sendMessage("ITEM_SLOT_UPDATE_COOLDOWN", bagId, slot)
             end
         end
     end
@@ -1140,7 +1138,8 @@ do
 
     function ItemSlot:UpdateCooldown()
         if self:GetItem() and not self:IsCached() then
-            ContainerFrame_UpdateCooldown(self:GetBag(), self)
+            local start, duration, enable = GetContainerItemCooldown(self:GetBag(), self:GetID())
+            CooldownFrame_SetTimer(self.cooldown, start or 0, duration or 0, enable or 0)
         else
             CooldownFrame_SetTimer(self.cooldown, 0, 0, 0)
             SetItemButtonTextureVertexColor(self, 1, 1, 1)

@@ -83,6 +83,13 @@ function UF.SmallFrame.Create(opts)
         return UF.IsEnabled(opts.configKey)
     end
 
+    local function IsNativeVisibilityEnabled()
+        if not opts.cvar then
+            return true
+        end
+        return not (GetCVar and GetCVar(opts.cvar) == "0")
+    end
+
 
     -- ========================================================================
     -- UNIT HELPERS
@@ -99,6 +106,10 @@ function UF.SmallFrame.Create(opts)
     end
 
     local function ShouldShow()
+        if not IsNativeVisibilityEnabled() then
+            return false
+        end
+
         if not UnitExists(opts.parentUnit) then
             return false
         end
@@ -450,15 +461,7 @@ function UF.SmallFrame.Create(opts)
             if frames.main then
                 frames.main:Hide()
             end
-            if opts.cvar then
-                SetCVar(opts.cvar, "0")
-            end
             return
-        end
-
-        -- Force-enable Blizzard CVar if applicable (ToT only)
-        if opts.cvar then
-            SetCVar(opts.cvar, "1")
         end
 
         -- Verify frame exists
@@ -641,6 +644,42 @@ function UF.SmallFrame.Create(opts)
     -- EVENT HANDLING
     -- ========================================================================
 
+    local function ReconcileVisibility()
+        if InCombatLockdown() then
+            Module.pendingVisibilityRefresh = true
+            return
+        end
+
+        Module.pendingVisibilityRefresh = nil
+
+        if not IsEnabled() then
+            if frames.main then
+                frames.main:Hide()
+            end
+            return
+        end
+
+        if frames.main then
+            if ShouldShow() then
+                frames.main:Show()
+            else
+                frames.main:Hide()
+            end
+        end
+
+        UpdateClassification()
+        UpdateSmallFrameClassPortrait()
+
+        local config = GetConfig()
+        if config and config.override then
+            Module:UpdateWidgets()
+        end
+    end
+
+    local function RequestVisibilityRefresh()
+        Module.pendingVisibilityRefresh = true
+    end
+
     local function OnEvent(self, event, ...)
         -- ----------------------------------------------------------------
         -- ADDON_LOADED
@@ -650,15 +689,6 @@ function UF.SmallFrame.Create(opts)
             if name == "DragonUI" then
                 -- Apply widget position from DB (addon.db is now available)
                 Module:ApplyWidgetPosition()
-
-                -- Set CVar on load (ToT only)
-                if opts.cvar then
-                    if IsEnabled() then
-                        SetCVar(opts.cvar, "1")
-                    else
-                        SetCVar(opts.cvar, "0")
-                    end
-                end
             end
 
         -- ----------------------------------------------------------------
@@ -686,18 +716,7 @@ function UF.SmallFrame.Create(opts)
             end
 
             -- Ensure visibility after entering world
-            if IsEnabled() and ShouldShow() and not InCombatLockdown() then
-                if frames.main then
-                    frames.main:Show()
-                end
-                UpdateClassification()
-                UpdateSmallFrameClassPortrait()
-            end
-
-            local config = GetConfig()
-            if config and config.override then
-                Module:UpdateWidgets()
-            end
+            ReconcileVisibility()
 
         -- ----------------------------------------------------------------
         -- Unit event (target/focus changed)
@@ -705,21 +724,12 @@ function UF.SmallFrame.Create(opts)
         elseif event == opts.unitEvent then
             if not IsEnabled() then return end
 
-            if frames.main and not InCombatLockdown() then
-                if ShouldShow() then
-                    frames.main:Show()
-                else
-                    frames.main:Hide()
-                end
+            if InCombatLockdown() then
+                RequestVisibilityRefresh()
+                return
             end
 
-            UpdateClassification()
-            UpdateSmallFrameClassPortrait()
-
-            local config = GetConfig()
-            if config and config.override then
-                Module:UpdateWidgets()
-            end
+            ReconcileVisibility()
 
         -- ----------------------------------------------------------------
         -- UNIT_TARGET
@@ -737,20 +747,23 @@ function UF.SmallFrame.Create(opts)
             end
 
             if shouldHandle then
-                if frames.main and not InCombatLockdown() then
-                    if ShouldShow() then
-                        frames.main:Show()
-                    else
-                        frames.main:Hide()
-                    end
+                if InCombatLockdown() then
+                    RequestVisibilityRefresh()
+                    return
                 end
-                UpdateClassification()
-                UpdateSmallFrameClassPortrait()
 
-                local config = GetConfig()
-                if config and config.override then
-                    Module:UpdateWidgets()
-                end
+                ReconcileVisibility()
+            end
+
+        elseif event == "PLAYER_REGEN_ENABLED" then
+            if Module.pendingVisibilityRefresh then
+                ReconcileVisibility()
+            end
+
+        elseif event == "CVAR_UPDATE" then
+            local cvarName = ...
+            if opts.cvar and cvarName == opts.cvar then
+                ReconcileVisibility()
             end
 
         -- ----------------------------------------------------------------
@@ -775,6 +788,10 @@ function UF.SmallFrame.Create(opts)
     Module.eventsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
     Module.eventsFrame:RegisterEvent(opts.unitEvent)
     Module.eventsFrame:RegisterEvent("UNIT_TARGET")
+    Module.eventsFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    if opts.cvar then
+        Module.eventsFrame:RegisterEvent("CVAR_UPDATE")
+    end
     Module.eventsFrame:RegisterEvent("UNIT_CLASSIFICATION_CHANGED")
     Module.eventsFrame:RegisterEvent("UNIT_FACTION")
     Module.eventsFrame:SetScript("OnEvent", OnEvent)
@@ -884,15 +901,10 @@ function UF.SmallFrame.Create(opts)
         if not IsEnabled() then
             if frames.main and not InCombatLockdown() then
                 frames.main:Hide()
-            end
-            if opts.cvar then
-                SetCVar(opts.cvar, "0")
+            elseif frames.main then
+                RequestVisibilityRefresh()
             end
             return
-        end
-
-        if opts.cvar then
-            SetCVar(opts.cvar, "1")
         end
 
         if not Module.configured then
@@ -920,6 +932,8 @@ function UF.SmallFrame.Create(opts)
                 else
                     frames.main:Hide()
                 end
+            elseif frames.main then
+                RequestVisibilityRefresh()
             end
         end
 

@@ -45,6 +45,53 @@ local function IsCombuctorEnabled()
     return addon:IsModuleEnabled("combuctor")
 end
 
+local function IsBagnonLoaded()
+    return (IsAddOnLoaded and IsAddOnLoaded("Bagnon")) or _G.Bagnon ~= nil
+end
+
+local function GetSortMoveInterval()
+    local cfg = GetModuleConfig()
+    local interval = cfg and tonumber(cfg.move_interval) or 0.1
+    if interval < 0.05 then return 0.05 end
+    if interval > 0.5 then return 0.5 end
+    return interval
+end
+
+local function GetBagnonFrame(frameType)
+    if not IsBagnonLoaded() then return nil end
+
+    local names
+    if frameType == "bank" then
+        names = { "BagnonFramebank", "BagnonBankFrame", "BagnonFrameBank", "BagnonFrame2" }
+    else
+        names = { "BagnonFrameinventory", "BagnonInventoryFrame", "BagnonFrameInventory", "BagnonFrame1" }
+    end
+
+    for _, name in ipairs(names) do
+        local frame = _G[name]
+        if frame then
+            return frame
+        end
+    end
+
+    local bagnon = _G.Bagnon
+    if bagnon and type(bagnon) == "table" then
+        if bagnon.GetFrame then
+            local frame = bagnon:GetFrame(frameType)
+            if frame then
+                return frame
+            end
+        end
+
+        local frames = bagnon.frames or bagnon.Frames
+        if frames then
+            return frames[frameType] or frames[string.upper(frameType)] or frames[frameType == "bank" and 2 or 1]
+        end
+    end
+
+    return nil
+end
+
 -- ============================================================================
 -- SORTING ENGINE
 -- ============================================================================
@@ -76,9 +123,15 @@ local bank_open = false
 local clickHooksInstalled = false
 local hookedSlotButtons = {}
 local lockVisualFrame
+local bagnonSlotScanRequested = false
+local bagnonSlotScanPasses = 0
+local bagnonIntegrationHooked = false
+local bagnonFrameHooksInstalled = false
+local bagnonSortingHooked = false
 
 -- Forward declarations
 local StopSorting
+local UpdateButtonVisibility
 
 -- Encoding helpers
 local function encode_bagslot(bag, slot) return (bag * 100) + slot end
@@ -183,6 +236,17 @@ GetBagSlotFromButton = function(btn)
         slot = btn:GetID()
     end
 
+    -- Bagnon variants commonly expose bag/slot as fields or GetBagID/GetSlotID methods.
+    if (not bag) and btn.GetBagID and btn.GetSlotID then
+        bag = btn:GetBagID()
+        slot = btn:GetSlotID()
+    end
+
+    if (not bag) then
+        bag = btn.bag or btn.bagID or btn.bagId or btn:GetParent() and (btn:GetParent().bag or btn:GetParent().bagID or btn:GetParent().bagId)
+        slot = btn.slot or btn.slotID or btn.slotId or btn.id
+    end
+
     -- Vanilla bank generic slots (BankFrameItem1..N).
     -- Must be checked BEFORE the parent-frame path: BankFrame:GetID() returns 0
     -- (truthy in Lua), which would cause the parent check to match and store the
@@ -208,6 +272,9 @@ GetBagSlotFromButton = function(btn)
     end
 
     if bag == nil or slot == nil then return nil, nil end
+    bag = tonumber(bag)
+    slot = tonumber(slot)
+    if bag == nil or slot == nil then return nil, nil end
     if type(slot) ~= "number" or slot < 1 then return nil, nil end
     return bag, slot
 end
@@ -223,6 +290,16 @@ local function GetHoveredBagSlot()
     if owner.GetBag and owner.GetID then
         bag = owner:GetBag()
         slot = owner:GetID()
+    end
+
+    if (not bag) and owner.GetBagID and owner.GetSlotID then
+        bag = owner:GetBagID()
+        slot = owner:GetSlotID()
+    end
+
+    if (not bag) then
+        bag = owner.bag or owner.bagID or owner.bagId or owner:GetParent() and (owner:GetParent().bag or owner:GetParent().bagID or owner:GetParent().bagId)
+        slot = owner.slot or owner.slotID or owner.slotId or owner.id
     end
 
     -- Vanilla bank generic slots (BankFrameItem1..N).
@@ -249,6 +326,9 @@ local function GetHoveredBagSlot()
     end
 
     if bag == nil or slot == nil then return nil, nil end
+    bag = tonumber(bag)
+    slot = tonumber(slot)
+    if bag == nil or slot == nil then return nil, nil end
     if type(slot) ~= "number" or slot < 1 then return nil, nil end
     return bag, slot
 end
@@ -269,6 +349,12 @@ local function InstallAltClickHooks()
 
     local function HookSlotButton(button)
         if not button or button._dragonUISortLockHooked then return end
+
+        local objectType = button.GetObjectType and button:GetObjectType()
+        if objectType ~= "Button" and objectType ~= "CheckButton" then
+            return
+        end
+
         button._dragonUISortLockHooked = true
         hookedSlotButtons[button] = true
         EnsureLockMarker(button)
@@ -283,9 +369,14 @@ local function InstallAltClickHooks()
             end
         end)
 
-        button:HookScript("OnClick", function(self, mouseButton)
+        local function HandleAltClick(self, mouseButton)
             if not BagSortModule.applied then return end
             if mouseButton ~= "LeftButton" or not IsAltKeyDown() then return end
+            local now = GetTime and GetTime() or 0
+            if self._dragonUISortLockLastClick and now > 0 and (now - self._dragonUISortLockLastClick) < 0.15 then
+                return
+            end
+            self._dragonUISortLockLastClick = now
 
             local bag, slot = GetBagSlotFromButton(self)
             if not bag or not slot then return end
@@ -299,7 +390,11 @@ local function InstallAltClickHooks()
                     ClearCursor()
                 end
             end
-        end)
+        end
+
+        button:HookScript("OnClick", HandleAltClick)
+        button:HookScript("PostClick", HandleAltClick)
+        button:HookScript("OnMouseUp", HandleAltClick)
 
         UpdateButtonLockMarker(button)
     end
@@ -326,16 +421,175 @@ local function InstallAltClickHooks()
         end
     end
 
+    local function HookBagnonSlotButtons()
+        local function HookBagnonItemFrame(itemFrame)
+            if not itemFrame then return end
+
+            if itemFrame.GetAllItemSlots then
+                for _, itemSlot in itemFrame:GetAllItemSlots() do
+                    if itemSlot then
+                        HookSlotButton(itemSlot)
+                    end
+                end
+            elseif type(itemFrame.itemSlots) == "table" then
+                for _, itemSlot in pairs(itemFrame.itemSlots) do
+                    if itemSlot then
+                        HookSlotButton(itemSlot)
+                    end
+                end
+            end
+        end
+
+        local function HookBagnonFrameObject(frame)
+            if not frame then return end
+            if frame.GetItemFrame then
+                HookBagnonItemFrame(frame:GetItemFrame())
+            end
+            HookBagnonItemFrame(frame.itemFrame)
+        end
+
+        local function HookFrameChildren(frame, depth)
+            if not frame or depth > 5 or not frame.GetChildren then return end
+            local children = { frame:GetChildren() }
+            for _, child in ipairs(children) do
+                if GetBagSlotFromButton(child) then
+                    HookSlotButton(child)
+                end
+                HookFrameChildren(child, depth + 1)
+            end
+        end
+
+        local inventoryFrame = GetBagnonFrame("inventory")
+        local bankFrame = GetBagnonFrame("bank")
+        HookBagnonFrameObject(inventoryFrame)
+        HookBagnonFrameObject(bankFrame)
+        HookFrameChildren(inventoryFrame, 1)
+        HookFrameChildren(bankFrame, 1)
+
+        local bagnon = _G.Bagnon
+        local frames = bagnon and (bagnon.frames or bagnon.Frames)
+        if type(frames) == "table" then
+            for _, frame in pairs(frames) do
+                HookBagnonFrameObject(frame)
+            end
+        end
+    end
+
+    local function InstallBagnonIntegrationHooks()
+        local bagnon = _G.Bagnon
+        if not bagnon then return end
+
+        if not bagnonSortingHooked and bagnon.Sorting and bagnon.Sorting.GetSpaces then
+            bagnonSortingHooked = true
+            local originalGetSpaces = bagnon.Sorting.GetSpaces
+            bagnon.Sorting.GetSpaces = function(sortModule, ...)
+                local spaces = originalGetSpaces(sortModule, ...)
+                if not BagSortModule.applied or type(spaces) ~= "table" then
+                    return spaces
+                end
+
+                local filteredSpaces = {}
+                for _, space in ipairs(spaces) do
+                    if not (space and space.bag and space.slot and IsSlotLocked(space.bag, space.slot)) then
+                        if space then
+                            space.index = #filteredSpaces
+                            if space.item then
+                                space.item.space = space
+                            end
+                            tinsert(filteredSpaces, space)
+                        end
+                    end
+                end
+
+                return filteredSpaces
+            end
+        end
+
+        if not bagnonFrameHooksInstalled then
+            bagnonFrameHooksInstalled = true
+
+            local function RefreshBagnonIntegration()
+                if not BagSortModule.applied then return end
+                if addon.After then
+                    addon:After(0.1, function()
+                        if BagSortModule.applied then
+                            UpdateButtonVisibility()
+                            HookBagnonSlotButtons()
+                        end
+                    end)
+                else
+                    UpdateButtonVisibility()
+                    HookBagnonSlotButtons()
+                end
+            end
+
+            if bagnon.ShowFrame then
+                hooksecurefunc(bagnon, "ShowFrame", RefreshBagnonIntegration)
+            end
+            if bagnon.CreateFrame then
+                hooksecurefunc(bagnon, "CreateFrame", RefreshBagnonIntegration)
+            end
+        end
+
+        if not bagnonIntegrationHooked then
+            if bagnon.ItemFrame and bagnon.ItemFrame.AddItemSlot then
+                bagnonIntegrationHooked = true
+                hooksecurefunc(bagnon.ItemFrame, "AddItemSlot", function(itemFrame, bag, slot)
+                    if not BagSortModule.applied or not itemFrame or not itemFrame.GetItemSlot then return end
+                    local itemSlot = itemFrame:GetItemSlot(bag, slot)
+                    if itemSlot then
+                        HookSlotButton(itemSlot)
+                        UpdateButtonLockMarker(itemSlot)
+                    end
+                end)
+            elseif bagnon.Frame and bagnon.Frame.CreateItemFrame then
+                bagnonIntegrationHooked = true
+                hooksecurefunc(bagnon.Frame, "CreateItemFrame", function(frame)
+                    if not BagSortModule.applied then return end
+                    if frame and frame.GetItemFrame then
+                        local itemFrame = frame:GetItemFrame()
+                        if itemFrame then
+                            HookBagnonSlotButtons()
+                        end
+                    end
+                end)
+            end
+        end
+    end
+
+    local function RequestBagnonSlotScan()
+        bagnonSlotScanRequested = true
+        bagnonSlotScanPasses = 0
+    end
+
+    BagSortModule.RequestBagnonSlotScan = RequestBagnonSlotScan
+    BagSortModule.ScanBagnonSlots = HookBagnonSlotButtons
+
+    InstallBagnonIntegrationHooks()
     HookKnownSlotButtons()
+    HookBagnonSlotButtons()
     RefreshAllLockMarkers()
 
     lockVisualFrame = CreateFrame("Frame")
     local elapsed = 0
+    local bagnonElapsed = 0
     lockVisualFrame:SetScript("OnUpdate", function(self, dt)
         if not BagSortModule.applied then return end
         elapsed = elapsed + dt
+        if bagnonSlotScanRequested then
+            bagnonElapsed = bagnonElapsed + dt
+            if bagnonElapsed >= 1 then
+                bagnonElapsed = 0
+                HookBagnonSlotButtons()
+                bagnonSlotScanPasses = bagnonSlotScanPasses + 1
+                if bagnonSlotScanPasses >= 4 then
+                    bagnonSlotScanRequested = false
+                end
+            end
+        end
         if elapsed < 0.4 then return end
         elapsed = 0
+        InstallBagnonIntegrationHooks()
         HookKnownSlotButtons()
         RefreshAllLockMarkers()
     end)
@@ -675,7 +929,7 @@ local current_id, current_target
 
 moveFrame:SetScript("OnUpdate", function(self, elapsed)
     moveTimer = moveTimer + elapsed
-    if moveTimer < 0.1 then return end
+    if moveTimer < GetSortMoveInterval() then return end
     moveTimer = 0
 
     -- Safety: check for unexpected cursor items
@@ -943,6 +1197,8 @@ end
 
 local combustorBagSortBtn, combustorBankSortBtn
 local combustorBagClearBtn, combustorBankClearBtn
+local bagnonBagSortBtn, bagnonBankSortBtn
+local bagnonBagClearBtn, bagnonBankClearBtn
 
 local function GetCombuctorFrame(index)
     return _G["DragonUI_CombuctorFrame" .. index]
@@ -1007,6 +1263,50 @@ local function CreateCombuctorSortButtons()
         )
         BagSortModule.frames.combustorBankSortBtn = combustorBankSortBtn
         BagSortModule.frames.combustorBankClearBtn = combustorBankClearBtn
+    end
+end
+
+local function AttachBagnonButtons(frame, sortRef, clearRef, sortFunc, sortBtnName, clearBtnName, tooltipText)
+    if not frame then return sortRef, clearRef end
+
+    local sortBtn = sortRef
+    local clearBtn = clearRef or CreateClearLocksButton(clearBtnName, frame, 0.62)
+
+    if sortBtn then
+        sortBtn:SetParent(frame)
+        sortBtn:Hide()
+    end
+    clearBtn:SetParent(frame)
+    clearBtn:ClearAllPoints()
+    clearBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -58, -10)
+    clearBtn:SetFrameLevel(frame:GetFrameLevel() + 20)
+    clearBtn:Show()
+
+    return sortBtn, clearBtn
+end
+
+local function CreateBagnonSortButtons()
+    if not IsBagnonLoaded() then return end
+
+    local inventoryFrame = GetBagnonFrame("inventory")
+    local bankFrame = GetBagnonFrame("bank")
+
+    if inventoryFrame and (bagnonBagSortBtn or not bagnonBagClearBtn) then
+        bagnonBagSortBtn, bagnonBagClearBtn = AttachBagnonButtons(
+            inventoryFrame, bagnonBagSortBtn, bagnonBagClearBtn,
+            SortPlayerBags, "DragonUI_BagnonBagSortBtn", "DragonUI_BagnonBagClearBtn", T("Sort Bags", "Sort Bags")
+        )
+        BagSortModule.frames.bagnonBagSortBtn = bagnonBagSortBtn
+        BagSortModule.frames.bagnonBagClearBtn = bagnonBagClearBtn
+    end
+
+    if bankFrame and (bagnonBankSortBtn or not bagnonBankClearBtn) then
+        bagnonBankSortBtn, bagnonBankClearBtn = AttachBagnonButtons(
+            bankFrame, bagnonBankSortBtn, bagnonBankClearBtn,
+            SortBankBags, "DragonUI_BagnonBankSortBtn", "DragonUI_BagnonBankClearBtn", T("Sort Bank", "Sort Bank")
+        )
+        BagSortModule.frames.bagnonBankSortBtn = bagnonBankSortBtn
+        BagSortModule.frames.bagnonBankClearBtn = bagnonBankClearBtn
     end
 end
 
@@ -1102,7 +1402,7 @@ end
 -- BUTTON VISIBILITY MANAGEMENT
 -- ============================================================================
 
-local function UpdateButtonVisibility()
+UpdateButtonVisibility = function()
     local combuctorActive = IsCombuctorEnabled()
     local combuctorApplied = GetCombuctorFrame(1) ~= nil
 
@@ -1112,16 +1412,38 @@ local function UpdateButtonVisibility()
         if combustorBagClearBtn then combustorBagClearBtn:Show() end
         if combustorBankSortBtn then combustorBankSortBtn:Show() end
         if combustorBankClearBtn then combustorBankClearBtn:Show() end
+        if bagnonBagSortBtn then bagnonBagSortBtn:Hide() end
+        if bagnonBagClearBtn then bagnonBagClearBtn:Hide() end
+        if bagnonBankSortBtn then bagnonBankSortBtn:Hide() end
+        if bagnonBankClearBtn then bagnonBankClearBtn:Hide() end
         if vanillaBagSortBtn then vanillaBagSortBtn:Hide() end
         if vanillaBagClearBtn then vanillaBagClearBtn:Hide() end
         if vanillaBankSortBtn then vanillaBankSortBtn:Hide() end
         if vanillaBankClearBtn then vanillaBankClearBtn:Hide() end
+    elseif IsBagnonLoaded() then
+        CreateBagnonSortButtons()
+        if bagnonBagSortBtn then bagnonBagSortBtn:Hide() end
+        if bagnonBagClearBtn then bagnonBagClearBtn:Show() end
+        if bagnonBankSortBtn then bagnonBankSortBtn:Hide() end
+        if bagnonBankClearBtn then bagnonBankClearBtn:Show() end
+        if vanillaBagSortBtn then vanillaBagSortBtn:Hide() end
+        if vanillaBagClearBtn then vanillaBagClearBtn:Hide() end
+        if vanillaBankSortBtn then vanillaBankSortBtn:Hide() end
+        if vanillaBankClearBtn then vanillaBankClearBtn:Hide() end
+        if combustorBagSortBtn then combustorBagSortBtn:Hide() end
+        if combustorBagClearBtn then combustorBagClearBtn:Hide() end
+        if combustorBankSortBtn then combustorBankSortBtn:Hide() end
+        if combustorBankClearBtn then combustorBankClearBtn:Hide() end
     else
         CreateVanillaBagSortButton()
         CreateVanillaBankSortButton()
         UpdateVanillaBagSortButton()
         if vanillaBankSortBtn then vanillaBankSortBtn:Show() end
         if vanillaBankClearBtn then vanillaBankClearBtn:Show() end
+        if bagnonBagSortBtn then bagnonBagSortBtn:Hide() end
+        if bagnonBagClearBtn then bagnonBagClearBtn:Hide() end
+        if bagnonBankSortBtn then bagnonBankSortBtn:Hide() end
+        if bagnonBankClearBtn then bagnonBankClearBtn:Hide() end
         if combustorBagSortBtn then combustorBagSortBtn:Hide() end
         if combustorBagClearBtn then combustorBagClearBtn:Hide() end
         if combustorBankSortBtn then combustorBankSortBtn:Hide() end
@@ -1175,6 +1497,20 @@ local function InstallShowHooks()
                 UpdateButtonVisibility()
             end
         end)
+    end
+
+    for _, frameType in ipairs({ "inventory", "bank" }) do
+        local frame = GetBagnonFrame(frameType)
+        if frame and frame.HookScript then
+            frame:HookScript("OnShow", function()
+                if BagSortModule.applied then
+                    UpdateButtonVisibility()
+                    if BagSortModule.RequestBagnonSlotScan then
+                        BagSortModule.RequestBagnonSlotScan()
+                    end
+                end
+            end)
+        end
     end
 end
 
@@ -1254,6 +1590,10 @@ local function RestoreBagSortSystem()
     if combustorBagClearBtn then combustorBagClearBtn:Hide() end
     if combustorBankSortBtn then combustorBankSortBtn:Hide() end
     if combustorBankClearBtn then combustorBankClearBtn:Hide() end
+    if bagnonBagSortBtn then bagnonBagSortBtn:Hide() end
+    if bagnonBagClearBtn then bagnonBagClearBtn:Hide() end
+    if bagnonBankSortBtn then bagnonBankSortBtn:Hide() end
+    if bagnonBankClearBtn then bagnonBankClearBtn:Hide() end
     if vanillaBagSortBtn then vanillaBagSortBtn:Hide() end
     if vanillaBagClearBtn then vanillaBagClearBtn:Hide() end
     if vanillaBankSortBtn then vanillaBankSortBtn:Hide() end
