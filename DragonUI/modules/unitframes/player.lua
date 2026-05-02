@@ -891,7 +891,8 @@ local function UpdateGroupIndicator()
     for i = 1, numRaidMembers do
         local name, rank, subgroup = GetRaidRosterInfo(i)
         if name and name == UnitName("player") then
-            groupText:SetText(string.format(L["GROUP %d"], subgroup))
+            local groupFormat = _G.GROUP_NUMBER or "Group %d"
+            groupText:SetText(string.format(groupFormat, subgroup))
             groupIndicatorFrame:Show()
             break
         end
@@ -2404,6 +2405,7 @@ local function InitializePlayerFrame()
         if Module.blizzardHooksRegistered then return end
         SafeHookSecureFunc("PlayerFrame_UpdateStatus", PlayerFrame_UpdateStatus)
         SafeHookSecureFunc("PlayerFrame_UpdateArt", ChangePlayerframe)
+        SafeHookSecureFunc("PlayerFrame_UpdateGroupIndicator", UpdateGroupIndicator)
         SafeHookSecureFunc("UnitFramePortrait_Update", function(frame, unit)
             if frame == PlayerFrame and (unit == "player" or unit == "vehicle") then
                 RefreshPlayerPortraitState(unit)

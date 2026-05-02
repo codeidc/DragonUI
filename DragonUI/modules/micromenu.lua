@@ -1493,11 +1493,11 @@ local function ApplyMicromenuSystem()
         if not pUiBagsBar.registeredInEditor then
             -- Calculate overlay size to exactly match the visible bag elements.
             -- Layout (right to left from backpack right edge):
-            --   Backpack(50) + gap(14) + 4×Bag(28)+3×gap(4) = 188
-            --   + KeyRing? → gap(4) + KeyRing(34) = 226
-            -- Height matches backpack (50) plus a small vertical margin.
-            local hasKeyRing = KeyRingButton and HasKey and HasKey()
-            local bagsOverlayWidth = hasKeyRing and 226 or 188
+            --   Backpack(50) + gap(14) + 4xBag(28)+3xgap(4) = 188
+            --   + KeyRing gap(4) + KeyRing(34) = 226
+            -- Keep the editor frame at max width so gaining the keyring after
+            -- a reload does not shift center-anchored saved positions.
+            local bagsOverlayWidth = 226
             local bagsOverlayHeight = 54
 
             -- Create container frame using the standard system

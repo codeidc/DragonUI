@@ -2671,6 +2671,12 @@ function HealComm:OnInitialize()
 	for spell in pairs(spellData) do
 		averageHeal[spell] = setmetatable({spell = spell}, self.averageHealMT)
 	end
+
+	for _, data in pairs(talentData) do
+		if( data.spent == nil ) then
+			data.spent = 0
+		end
+	end
 	
 	-- Cache glyphs initially
     for id=1, GetNumGlyphSockets() do

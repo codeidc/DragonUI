@@ -63,8 +63,8 @@ local WHITE_LIST = {'MiniMapBattlefieldFrame', 'MiniMapTrackingButton', 'MiniMap
                     'GatherMatePin', 'HandyNotesPin', 'TimeManagerClockButton', 'Archy', 'GatherNote', 'MinimMap',
                     'Spy_MapNoteList_mini', 'ZGVMarker', 'poiWorldMapPOIFrame', 'WorldMapPOIFrame', 'QuestMapPOI',
                     'GameTimeFrame',
-                    -- Questie minimap POI icons (quest markers inside the minimap)
-                    'QuestieFrame', 'Questie_MiniMapNote'}
+                    -- Quest helper POI icons (quest markers inside the minimap)
+                    'QuestieFrame', 'Questie_MiniMapNote', 'pfQuest', 'pfquest', 'pfMap', 'pfMinimap'}
 
 local function IsFrameWhitelisted(frameName)
     if not frameName then
@@ -79,6 +79,25 @@ local function IsFrameWhitelisted(frameName)
         end
     end
     return false
+end
+
+local function IsQuestMinimapPin(button)
+    if not button then
+        return false
+    end
+
+    local frameName = button:GetName()
+    if IsFrameWhitelisted(frameName) then
+        return true
+    end
+
+    local parent = button:GetParent()
+    local parentName = parent and parent.GetName and parent:GetName()
+    if IsFrameWhitelisted(parentName) then
+        return true
+    end
+
+    return button.miniMapIcon or button.miniMapIconData or button.pfQuest or button.pfquest
 end
 
 -- Verify atlas function availability at startup
@@ -1035,7 +1054,7 @@ local function ApplyAddonIconSkin(button)
     end
 
     local frameName = button:GetName()
-    if IsFrameWhitelisted(frameName) then
+    if IsQuestMinimapPin(button) then
         return
     end
 
@@ -1291,7 +1310,7 @@ local function GetAllMinimapButtons()
             if child and child:GetObjectType() == "Button" and not seen[child] then
                 -- Skip known Blizzard minimap buttons to avoid stray borders
                 local childName = child:GetName()
-                if not (childName and BLIZZARD_MINIMAP_BUTTONS[childName]) then
+                if not (childName and BLIZZARD_MINIMAP_BUTTONS[childName]) and not IsQuestMinimapPin(child) then
                     seen[child] = true
                     table.insert(buttons, child)
                 end
@@ -1370,7 +1389,7 @@ local function UpdateAddonButtonFade()
     local fadeEnabled = IsFadeEnabled()
     local buttons = GetAllMinimapButtons()
     for _, child in ipairs(buttons) do
-        if not IsFrameWhitelisted(child:GetName()) then
+        if not IsQuestMinimapPin(child) then
             -- Hook fade scripts once if not already hooked
             if not child.DragonUI_FadeHooked then
                 child.DragonUI_FadeHooked = true
