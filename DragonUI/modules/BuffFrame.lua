@@ -77,6 +77,20 @@ local function GetDebuffHorizontalGap()
     return (cfg and tonumber(cfg.debuff_horizontal_gap)) or 0
 end
 
+local function GetEnchantSlack()
+    if weaponEnchantsAreSeparated then
+        return 0
+    end
+    if not TemporaryEnchantFrame or not TemporaryEnchantFrame:IsShown() then
+        return 0
+    end
+    local enchants = (BuffFrame and BuffFrame.numEnchants) or 0
+    if enchants < 0 then
+        return 0
+    end
+    return enchants
+end
+
 -- Default weapon enchant frame position
 local WEAPON_DEFAULT_ANCHOR = "TOPRIGHT"
 local WEAPON_DEFAULT_POSX = -270
@@ -418,8 +432,8 @@ function BuffFrameModule:Enable()
     -- Used by both buff row-2 fix and debuff anchoring.
     -- ========================================================================
     local function GetBuffLayoutInfo()
-        -- When weapon enchants are separated, ignore enchant slots for row math
-        local slack = weaponEnchantsAreSeparated and 0 or (BuffFrame.numEnchants or 0)
+        -- Only reserve slots when enchants are currently visible in the chain.
+        local slack = GetEnchantSlack()
         local perRow = BUFFS_PER_ROW or 16
         local firstBuff = nil
         local lastRowStart = nil
@@ -499,15 +513,45 @@ function BuffFrameModule:Enable()
         end
     end
 
-    local function ApplyBuffHorizontalGap()
+    local function ReanchorBuffButtons()
         local buffGap = GetBuffHorizontalGap()
-        if buffGap <= 0 then return end
-
         local perRow = BUFFS_PER_ROW or 16
-        local slack = weaponEnchantsAreSeparated and 0 or (BuffFrame.numEnchants or 0)
+        local slack = GetEnchantSlack()
         local count = 0
         local previousBuff = nil
         local rowStarts = {}
+        local spacing = 6 + math.max(0, buffGap)
+
+        local function AnchorFirstBuff(button)
+            if weaponEnchantsAreSeparated and ConsolidatedBuffs then
+                button:ClearAllPoints()
+                if ConsolidatedBuffs:IsShown() then
+                    button:SetPoint("TOPRIGHT", ConsolidatedBuffs, "TOPLEFT", -6, 0)
+                else
+                    button:SetPoint("TOPRIGHT", ConsolidatedBuffs, "TOPRIGHT", 0, 0)
+                end
+                return
+            end
+
+            local visibleEnchants = slack
+            if visibleEnchants > 0 then
+                local lastEnchant = _G["TempEnchant" .. visibleEnchants]
+                if lastEnchant and lastEnchant:IsShown() then
+                    button:ClearAllPoints()
+                    button:SetPoint("TOPRIGHT", lastEnchant, "TOPLEFT", -6, 0)
+                    return
+                end
+            end
+
+            if ConsolidatedBuffs then
+                button:ClearAllPoints()
+                if ConsolidatedBuffs:IsShown() then
+                    button:SetPoint("TOPRIGHT", ConsolidatedBuffs, "TOPLEFT", -6, 0)
+                else
+                    button:SetPoint("TOPRIGHT", ConsolidatedBuffs, "TOPRIGHT", 0, 0)
+                end
+            end
+        end
 
         for index = 1, BUFF_ACTUAL_DISPLAY do
             local button = _G["BuffButton" .. index]
@@ -518,6 +562,7 @@ function BuffFrameModule:Enable()
                 local column = math.fmod(layoutIndex - 1, perRow) + 1
 
                 if count == 1 then
+                    AnchorFirstBuff(button)
                     rowStarts[row] = button
                 elseif column == 1 then
                     local previousRowStart = rowStarts[row - 1] or rowStarts[1] or previousBuff
@@ -528,7 +573,7 @@ function BuffFrameModule:Enable()
                     rowStarts[row] = button
                 elseif previousBuff then
                     button:ClearAllPoints()
-                    button:SetPoint("TOPRIGHT", previousBuff, "TOPLEFT", -(6 + buffGap), 0)
+                    button:SetPoint("TOPRIGHT", previousBuff, "TOPLEFT", -spacing, 0)
                 end
 
                 previousBuff = button
@@ -572,38 +617,9 @@ function BuffFrameModule:Enable()
                 end
             end
 
-            -- 2) Fix row-2 start and BuffButton1 anchoring.
-            --    When weapon enchants are separated, BuffButton1 should anchor
-            --    directly to ConsolidatedBuffs (ignoring enchant slots), and
-            --    row calculations use slack=0 since enchants are elsewhere.
-            local firstBuff, _, numVisible = GetBuffLayoutInfo()
-            local slack = weaponEnchantsAreSeparated and 0 or (BuffFrame.numEnchants or 0)
-            if weaponEnchantsAreSeparated and firstBuff and ConsolidatedBuffs then
-                -- Re-anchor first buff directly after ConsolidatedBuffs
-                firstBuff:ClearAllPoints()
-                if ConsolidatedBuffs:IsShown() then
-                    firstBuff:SetPoint("TOPRIGHT", ConsolidatedBuffs, "TOPLEFT", -6, 0)
-                else
-                    firstBuff:SetPoint("TOPRIGHT", ConsolidatedBuffs, "TOPRIGHT", 0, 0)
-                end
-            end
-            if firstBuff then
-                local perRow = BUFFS_PER_ROW or 16
-                local count = 0
-                for i = 1, BUFF_ACTUAL_DISPLAY do
-                    local btn = _G["BuffButton" .. i]
-                    if btn and btn:IsShown() and not btn.consolidated then
-                        count = count + 1
-                        local idx = count + slack
-                        if idx == perRow + 1 then
-                            btn:ClearAllPoints()
-                            btn:SetPoint("TOPRIGHT", firstBuff, "BOTTOMRIGHT", 0, -15)
-                        end
-                    end
-                end
-            end
-
-            ApplyBuffHorizontalGap()
+            -- 2) Rebuild the visible buff grid every update to avoid stale
+            --    anchors from Blizzard or external addons leaving asymmetric rows.
+            ReanchorBuffButtons()
 
             -- 3) Respect buff toggle: re-hide buffs if user collapsed them
             if buffsHiddenByToggle then
