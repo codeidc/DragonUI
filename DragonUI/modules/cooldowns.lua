@@ -98,6 +98,22 @@ function addon.cooldownMixin:set_cooldown(start, duration)
         return
     end
 
+    if type(start) ~= 'number' or type(duration) ~= 'number' then
+        return
+    end
+
+    -- Defensive normalization: some environments/addons can feed SetCooldown
+    -- with a start value from a different clock base than GetTime().
+    -- If remaining time is much larger than duration, keep duration and
+    -- rebase start to the local clock to avoid absurd values (e.g. 1194h).
+    if start > 0 and duration > 0 then
+        local now = GetTime()
+        local remaining = (start + duration) - now
+        if remaining > (duration + 2) then
+            start = now
+        end
+    end
+
     if moduleDb.enabled and start > 0 and duration > db.min_duration then
         self.remain = start + duration
 
