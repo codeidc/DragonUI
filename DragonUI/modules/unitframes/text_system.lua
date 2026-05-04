@@ -270,6 +270,20 @@ function TextSystem.UpdateFrameText(frameType, unit, parentFrame, healthBar, man
     local shouldShowHealth = config.showHealthTextAlways or healthHover
     local shouldShowMana = config.showManaTextAlways or manaHover
 
+    -- If UnitFrameLayers missing-health mode is active for this friendly non-pet unit,
+    -- hide TextSystem health text to prevent overlap and let missing-health text take priority.
+    -- Exception: friendly target/player in "both" mode can show both TextSystem + missing-health text.
+    local moduleCfg = addon.GetModuleConfig and addon:GetModuleConfig("unitframe_layers")
+    local missingHealthEnabled = moduleCfg and moduleCfg.missing_health == true
+    local missingHealthEligible = frameType ~= "pet"
+        and addon.UFL_ShouldShowMissingHealthForUnit
+        and addon.UFL_ShouldShowMissingHealthForUnit(actualUnit)
+    local allowBothWithMissing = (frameType == "target" or frameType == "player")
+        and config.textFormat == TextSystem.TEXT_FORMATS.both
+    if missingHealthEnabled and missingHealthEligible and not allowBothWithMissing then
+        shouldShowHealth = false
+    end
+
     -- Update health text
     if healthBar and shouldShowHealth then
         local health = UnitHealth(actualUnit) or 0

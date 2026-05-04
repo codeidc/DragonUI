@@ -1005,6 +1005,8 @@ L["Heal prediction bars, absorb shields, and animated health loss overlays on un
 L["Show heal prediction, absorb shields, and animated health loss on all unit frames."] = true
 L["Animated Health Loss"] = true
 L["Show animated red health loss bar on player frame when taking damage."] = true
+L["Missing Health Text"] = true
+L["Show the health deficit (missing health) as red text on health bars. Useful for healers."] = true
 L["Builder/Spender Feedback"] = true
 L["Show mana gain/loss glow feedback on player mana bar (experimental)."] = true
 

@@ -720,7 +720,8 @@ local defaults = {
             unitframe_layers = {
                 enabled = false, -- Heal prediction, absorb shields, animated health loss overlays on unit frames
                 animated_loss = true, -- Animated red health loss bar on player frame
-                builder_spender = false -- Mana gain/loss glow feedback (experimental)
+                builder_spender = false, -- Mana gain/loss glow feedback (experimental)
+                missing_health = false -- Show missing health deficit text on health bars
             }
         },
 

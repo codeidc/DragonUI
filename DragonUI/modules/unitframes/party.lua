@@ -755,6 +755,16 @@ UpdateHealthText = function(statusBar, forceShow)
     if not healthText then return end
     
     local settings = GetSettings()
+
+    -- If unitframe_layers missing-health mode is enabled, party health text
+    -- from this system must stay hidden to avoid overlap/redundancy.
+    local uflCfg = addon.GetModuleConfig and addon:GetModuleConfig("unitframe_layers")
+    if uflCfg and uflCfg.missing_health == true then
+        if healthText then healthText:Hide() end
+        if frame.DragonUI_HealthTextLeft then frame.DragonUI_HealthTextLeft:Hide() end
+        if frame.DragonUI_HealthTextRight then frame.DragonUI_HealthTextRight:Hide() end
+        return
+    end
     
     -- Check visibility logic with hover state (new structure)
     local frameIndexNum = tonumber(frameIndex)

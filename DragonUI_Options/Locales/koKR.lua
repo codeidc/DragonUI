@@ -986,6 +986,8 @@ L["Heal prediction bars, absorb shields, and animated health loss overlays on un
 L["Show heal prediction, absorb shields, and animated health loss on all unit frames."] = "모든 유닛 프레임에 치유 예측, 흡수 보호막, 생명력 손실 애니메이션을 표시합니다."
 L["Animated Health Loss"] = "생명력 손실 애니메이션"
 L["Show animated red health loss bar on player frame when taking damage."] = "피해를 받을 때 플레이어 프레임에 빨간색 생명력 손실 애니메이션 바를 표시합니다."
+L["Missing Health Text"] = "부족한 생명력 텍스트"
+L["Show the health deficit (missing health) as red text on health bars. Useful for healers."] = "부족한 생명력(결손 생명력)을 생명력 바에 빨간 텍스트로 표시합니다. 힐러에게 유용합니다."
 L["Builder/Spender Feedback"] = "자원 획득/소모 효과"
 L["Show mana gain/loss glow feedback on player mana bar (experimental)."] = "플레이어 마나 바에 마나 획득/소모 효과를 표시합니다 (실험적)."
 

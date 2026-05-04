@@ -983,6 +983,8 @@ L["Heal prediction bars, absorb shields, and animated health loss overlays on un
 L["Show heal prediction, absorb shields, and animated health loss on all unit frames."] = "Zeigt Heilvorhersage, Absorptionsschilde und animierten Lebensverlust auf allen Unit-Frames."
 L["Animated Health Loss"] = "Animierter Lebensverlust"
 L["Show animated red health loss bar on player frame when taking damage."] = "Zeigt beim Erleiden von Schaden einen animierten roten Lebensverlustbalken im Spielerrahmen."
+L["Missing Health Text"] = "Text fuer fehlende Gesundheit"
+L["Show the health deficit (missing health) as red text on health bars. Useful for healers."] = "Zeigt das Gesundheitsdefizit (fehlende Gesundheit) als roten Text auf Gesundheitsleisten. Nuezlich fuer Heiler."
 L["Builder/Spender Feedback"] = "Generator/Verbraucher-Feedback"
 L["Show mana gain/loss glow feedback on player mana bar (experimental)."] = "Zeigt Leuchteffekte für Mana-Gewinn/-Verlust auf der Manaleiste des Spielers an (experimentell)."
 

@@ -981,6 +981,8 @@ L["Heal prediction bars, absorb shields, and animated health loss overlays on un
 L["Show heal prediction, absorb shields, and animated health loss on all unit frames."] = "在所有单位框架上显示治疗预估、吸收护盾和动态生命值损失。"
 L["Animated Health Loss"] = "动态生命值损失"
 L["Show animated red health loss bar on player frame when taking damage."] = "受到伤害时，在玩家框架上显示红色的动态生命值损失条。"
+L["Missing Health Text"] = "缺失生命值文本"
+L["Show the health deficit (missing health) as red text on health bars. Useful for healers."] = "在生命值条上以红色文本显示生命值缺口（缺失生命值）。对治疗者很有用。"
 L["Builder/Spender Feedback"] = "资源获取/消耗反馈"
 L["Show mana gain/loss glow feedback on player mana bar (experimental)."] = "在玩家法力条上显示法力获取/消耗的发光反馈（实验性）。"
 

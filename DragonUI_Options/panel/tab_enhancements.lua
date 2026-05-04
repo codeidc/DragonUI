@@ -221,6 +221,27 @@ local function BuildEnhancementsTab(scroll)
         requiresReload = true,
     })
 
+    C:AddToggle(uflSection, {
+        label = LO["Missing Health Text"],
+        desc = LO["Show the health deficit (missing health) as red text on health bars. Useful for healers."],
+        getFunc = function()
+            local m = addon.db.profile.modules and addon.db.profile.modules.unitframe_layers
+            if not m then return false end
+            return m.missing_health == true
+        end,
+        setFunc = function(val)
+            if not addon.db.profile.modules.unitframe_layers then
+                addon.db.profile.modules.unitframe_layers = {}
+            end
+            addon.db.profile.modules.unitframe_layers.missing_health = val
+            if addon.RefreshUnitFrameLayers then
+                addon.RefreshUnitFrameLayers()
+            end
+        end,
+        disabled = function() return not IsEnabled("unitframe_layers") end,
+        requiresReload = false,
+    })
+
     -- ====================================================================
     -- ENHANCED TOOLTIPS
     -- ====================================================================

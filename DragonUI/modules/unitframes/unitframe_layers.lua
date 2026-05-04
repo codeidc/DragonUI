@@ -38,6 +38,31 @@ local function IsModuleEnabled()
 	return addon:IsModuleEnabled("unitframe_layers")
 end
 
+local function IsMissingHealthEnabled()
+	local cfg = GetModuleConfig();
+	return cfg and cfg.missing_health == true
+end
+
+-- Missing health should only apply to friendly non-pet units.
+local function ShouldShowMissingHealthForUnit(unit)
+	if not unit or not UnitExists(unit) then
+		return false
+	end
+
+	if unit == "pet" or unit:match("^partypet%d+$") or unit:match("^raidpet%d+$") then
+		return false
+	end
+
+	if UnitCanAttack("player", unit) then
+		return false
+	end
+
+	return true
+end
+
+-- Export so text_system can hide health text when missing-health mode is active.
+addon.UFL_ShouldShowMissingHealthForUnit = ShouldShowMissingHealthForUnit;
+
 -- ============================================================================
 -- LIBRARY REFERENCES
 -- ============================================================================
@@ -153,6 +178,44 @@ local function UnitFrameHealPredictionBars_Update(frame)
 	local _, maxHealth = frame.healthbar:GetMinMaxValues();
 	local health = frame.healthbar:GetValue();
 	if ( maxHealth <= 0 ) then return end
+
+	-- Missing health deficit text
+	-- Coordinate with the text system to avoid overlap:
+	--   "both" mode: LEFT=percent, RIGHT=numeric are used → slot missingHealthText into CENTER (always hidden in "both")
+	--   other modes: CENTER is used → slot into RIGHT (always free in non-both modes)
+	if frame.missingHealthText then
+		local missing = maxHealth - health;
+		if IsMissingHealthEnabled() and ShouldShowMissingHealthForUnit(frame.unit) and missing > 0 then
+			-- Determine text format for this frame from the text system config
+			local frameTypeKey = frame.unit;
+			if frameTypeKey and frameTypeKey:match("^party%d") then frameTypeKey = "party"; end
+			local textCfg = addon.db and addon.db.profile and addon.db.profile.unitframe and addon.db.profile.unitframe[frameTypeKey];
+			local textFormat = textCfg and textCfg.textFormat or "both";
+
+			-- Reanchor only when the format changes (avoid per-frame ClearAllPoints churn)
+			local uflData = frame.__DragonUI_UFL;
+			if not uflData or uflData.missingHealthFormat ~= textFormat then
+				frame.missingHealthText:ClearAllPoints();
+				if textFormat == "both" then
+					-- CENTER is free in "both" mode (text system uses left+right, not center)
+					frame.missingHealthText:SetPoint("CENTER", frame.healthbar, "CENTER", 0, 0);
+					frame.missingHealthText:SetJustifyH("CENTER");
+				else
+					-- RIGHT is free in all non-both modes (text system uses center only)
+					frame.missingHealthText:SetPoint("RIGHT", frame.healthbar, "RIGHT", -4, 0);
+					frame.missingHealthText:SetJustifyH("RIGHT");
+				end
+				if uflData then uflData.missingHealthFormat = textFormat; end
+			end
+
+			local abbrev = addon.TextSystem and addon.TextSystem.AbbreviateLargeNumbers;
+			local missingStr = abbrev and abbrev(missing) or tostring(missing);
+			frame.missingHealthText:SetText("-" .. missingStr);
+			frame.missingHealthText:Show();
+		else
+			frame.missingHealthText:Hide();
+		end
+	end
 
 	local myIncomingHeal = UFL_UnitGetIncomingHeals(frame.unit, "player") or 0;
 	local allIncomingHeal = UFL_UnitGetIncomingHeals(frame.unit) or 0;
@@ -476,6 +539,15 @@ local function UnitFrameLayer_Initialize(self, myHealPredictionBar, otherHealPre
 		end
 	end
 
+	-- Missing health deficit text
+	if not self.missingHealthText then
+		self.missingHealthText = self.healthbar:CreateFontString(nil, "OVERLAY", "TextStatusBarText");
+		self.missingHealthText:SetPoint("RIGHT", self.healthbar, "RIGHT", -4, 0);
+		self.missingHealthText:SetJustifyH("RIGHT");
+		self.missingHealthText:SetTextColor(1, 0.3, 0.3);
+		self.missingHealthText:Hide();
+	end
+
 	-- Force bars to use global OnUpdate handlers so prediction/loss logic updates
 	-- continuously even when other modules reset scripts on the statusbars.
 	self.__DragonUI_UFL = self.__DragonUI_UFL or {};
@@ -735,6 +807,10 @@ local function HideFrameChildren(frame)
 		if frame[key] and frame[key].Hide then
 			frame[key]:Hide();
 		end
+	end
+	-- Hide missing health text
+	if frame.missingHealthText then
+		frame.missingHealthText:Hide();
 	end
 	-- Hide animated loss bar
 	if frame.PlayerFrameHealthBarAnimatedLoss then
