@@ -278,7 +278,7 @@ function TextSystem.UpdateFrameText(frameType, unit, parentFrame, healthBar, man
     local missingHealthEligible = frameType ~= "pet"
         and addon.UFL_ShouldShowMissingHealthForUnit
         and addon.UFL_ShouldShowMissingHealthForUnit(actualUnit)
-    local allowBothWithMissing = (frameType == "target" or frameType == "player")
+    local allowBothWithMissing = (frameType == "target" or frameType == "player" or frameType == "focus")
         and config.textFormat == TextSystem.TEXT_FORMATS.both
     if missingHealthEnabled and missingHealthEligible and not allowBothWithMissing then
         shouldShowHealth = false
