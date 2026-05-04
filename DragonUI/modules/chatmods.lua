@@ -91,6 +91,11 @@
         SetMouseIfChanged(button, alpha >= 0.95)
     end
 
+local function SetPrimaryChatButtonsAlpha(alpha)
+    SetButtonAlpha(_G.ChatFrameMenuButton, alpha)
+    SetButtonAlpha(_G.FriendsMicroButton, alpha)
+end
+
     local function SetChatHoverButtonsVisible(i, visible, entry)
         local bf = (entry and entry.bf) or _G["ChatFrame" .. i .. "ButtonFrame"]
         if bf then
@@ -128,51 +133,32 @@
         end
     end
 
-local function StripButtonFrameBackground(buttonFrame)
-    if not buttonFrame then return end
-
-    for idx = 1, select("#", buttonFrame:GetRegions()) do
-        local region = select(idx, buttonFrame:GetRegions())
-        if region and region:GetObjectType() == "Texture" then
-            region:SetAlpha(0)
-        end
-    end
-
-    if buttonFrame.SetBackdropColor then
-        buttonFrame:SetBackdropColor(0, 0, 0, 0)
-    end
-    if buttonFrame.SetBackdropBorderColor then
-        buttonFrame:SetBackdropBorderColor(0, 0, 0, 0)
-    end
-
-    buttonFrame.DragonUIBackgroundStripped = true
-end
-
-local function SetChatHoverButtonsAlpha(i, alpha, entry)
-        local bf = (entry and entry.bf) or _G["ChatFrame" .. i .. "ButtonFrame"]
-        if bf then
-            if not bf:IsShown() then
-                bf:Show()
-            end
-            if IsAlphaChanged(bf:GetAlpha(), alpha) then
-                bf:SetAlpha(alpha)
-            end
-            SetMouseIfChanged(bf, alpha >= 0.95)
-        end
-
-    -- BF-child buttons: parent frame alpha handles fade, just toggle mouse
+local function SetChatHoverButtonsAlpha(i, alpha, entry, showBackground, fadeBackgroundWithButtons)
+    local bf = (entry and entry.bf) or _G["ChatFrame" .. i .. "ButtonFrame"]
     local upBtn = (entry and entry.upBtn) or _G["ChatFrame" .. i .. "ButtonFrameUpButton"]
     local downBtn = (entry and entry.downBtn) or _G["ChatFrame" .. i .. "ButtonFrameDownButton"]
     local bottomBtn = (entry and entry.bottomBtn) or _G["ChatFrame" .. i .. "ButtonFrameBottomButton"]
-    SetMouseIfChanged(upBtn, alpha >= 0.95)
-    SetMouseIfChanged(downBtn, alpha >= 0.95)
-    SetMouseIfChanged(bottomBtn, alpha >= 0.95)
 
-    -- Non-child buttons need independent alpha control
-    if i == 1 then
-        SetButtonAlpha((entry and entry.menuBtn) or _G.ChatFrameMenuButton, alpha)
-        SetButtonAlpha((entry and entry.friendsBtn) or _G.FriendsMicroButton, alpha)
+    -- When Tab/Button fade is 0, hide button background with the buttons.
+    -- For values > 0 keep button background stable and let Blizzard style show.
+    local bfAlpha
+    if fadeBackgroundWithButtons then
+        bfAlpha = showBackground and alpha or 0
+    else
+        bfAlpha = 1
     end
+
+    -- Same path as menu/friends buttons: explicit alpha + mouse threshold.
+    SetButtonAlpha(bf, bfAlpha)
+    SetButtonAlpha(upBtn, alpha)
+    SetButtonAlpha(downBtn, alpha)
+    SetButtonAlpha(bottomBtn, alpha)
+end
+
+local function ApplyTabAlphaGlobals(config)
+    local tabIdleAlpha = (config and config.tabIdleAlpha ~= nil) and config.tabIdleAlpha or 0
+    _G.CHAT_FRAME_TAB_NORMAL_NOMOUSE_ALPHA = tabIdleAlpha
+    _G.CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA = tabIdleAlpha
 end
 
     local function GetTabIdleAlpha(config)
@@ -194,30 +180,34 @@ end
         if not ChatModsModule.applied then return end
 
         local cfg = GetModuleConfig()
+        ApplyTabAlphaGlobals(cfg)
         local tabIdleAlpha = GetTabIdleAlpha(cfg)
         local styleIdleAlpha = GetStyleIdleAlpha(cfg)
         local ebIdleAlpha = GetEditboxIdleAlpha(cfg)
+        local fadeBackgroundWithButtons = tabIdleAlpha <= ALPHA_EPSILON
+        local selectedIndex = (_G.SELECTED_CHAT_FRAME and _G.SELECTED_CHAT_FRAME.GetID and _G.SELECTED_CHAT_FRAME:GetID())
+            or ChatModsModule.frames.lastSelectedChatIndex
+            or 1
+        local selectedAlpha = ChatModsModule.frames.lastSelectedButtonAlpha or tabIdleAlpha
+
+        if selectedIndex < 1 or selectedIndex > CHAT_FRAME_LIMIT then
+            selectedIndex = 1
+        end
 
         for i = 1, CHAT_FRAME_LIMIT do
             local cf = _G["ChatFrame" .. i]
             local tab = _G["ChatFrame" .. i .. "Tab"]
-            local bf = _G["ChatFrame" .. i .. "ButtonFrame"]
             local eb = _G["ChatFrame" .. i .. "EditBox"]
 
-            local hovered = (tab and tab:IsMouseOver())
-                or (cf and cf:IsMouseOver())
-                or (bf and bf:IsMouseOver())
-                or (eb and eb:IsMouseOver())
-
-            local tabAlpha = hovered and 1 or tabIdleAlpha
+            local tabAlpha = tabIdleAlpha
             if tab then
                 tab.noMouseAlpha = tabIdleAlpha
-                if IsAlphaChanged(tab:GetAlpha(), tabAlpha) then
-                    tab:SetAlpha(tabAlpha)
-                end
+                tabAlpha = tab:GetAlpha() or tabIdleAlpha
             end
 
-            SetChatHoverButtonsAlpha(i, tabAlpha)
+            if i == selectedIndex then
+                selectedAlpha = tabAlpha
+            end
 
             if cf and cf._dragonUIBgFrame and cf._dragonUIBgFrame:IsShown() then
                 local bgAlpha = styleIdleAlpha
@@ -239,6 +229,15 @@ end
                 end
             end
         end
+
+        ChatModsModule.frames.lastSelectedChatIndex = selectedIndex
+        ChatModsModule.frames.lastSelectedButtonAlpha = selectedAlpha
+
+        for i = 1, CHAT_FRAME_LIMIT do
+            SetChatHoverButtonsAlpha(i, (i == selectedIndex) and selectedAlpha or 0, nil, i == selectedIndex, fadeBackgroundWithButtons)
+        end
+
+        SetPrimaryChatButtonsAlpha(selectedAlpha)
 
         StartChatButtonsHoverUpdater(true)
     end
@@ -305,25 +304,35 @@ local function EnsureChatButtonsHoverUpdater()
 
         -- Cache config once per tick, outside the loop
         local cfg = GetModuleConfig()
+        ApplyTabAlphaGlobals(cfg)
         local idleAlpha = GetStyleIdleAlpha(cfg)
         local ebIdleAlpha = GetEditboxIdleAlpha(cfg)
         local forceUpdate = ChatModsModule.frames.chatHoverForceUpdate
         ChatModsModule.frames.chatHoverForceUpdate = nil
+        local tabIdleAlpha = GetTabIdleAlpha(cfg)
+        local fadeBackgroundWithButtons = tabIdleAlpha <= ALPHA_EPSILON
+        local selectedIndex = (_G.SELECTED_CHAT_FRAME and _G.SELECTED_CHAT_FRAME.GetID and _G.SELECTED_CHAT_FRAME:GetID())
+            or ChatModsModule.frames.lastSelectedChatIndex
+            or 1
+        local selectedAlpha = ChatModsModule.frames.lastSelectedButtonAlpha or tabIdleAlpha
+
+        if selectedIndex < 1 or selectedIndex > CHAT_FRAME_LIMIT then
+            selectedIndex = 1
+        end
 
         local hasActiveTransition = false
         local wroteVisualState = false
 
         for _, entry in ipairs(entries) do
-            -- StripButtonFrameBackground is NOT called here - it's handled by the
-            -- OnShow hook set in ApplyChatFrameTweaks. Calling it on a throttle
-            -- causes a visible flicker when Blizzard restores textures between ticks.
-
             -- Mirror the tab's current alpha (Blizzard fades it via noMouseAlpha).
             local tabAlpha = entry.tab and entry.tab:GetAlpha() or 0
             if forceUpdate or entry.lastTabAlpha == nil or IsAlphaChanged(entry.lastTabAlpha, tabAlpha) then
-                SetChatHoverButtonsAlpha(entry.index, tabAlpha, entry)
                 entry.lastTabAlpha = tabAlpha
                 wroteVisualState = true
+            end
+
+            if entry.index == selectedIndex then
+                selectedAlpha = tabAlpha
             end
 
             -- Sync style background frame with tab fade.
@@ -362,6 +371,15 @@ local function EnsureChatButtonsHoverUpdater()
                 hasActiveTransition = true
             end
         end
+
+        ChatModsModule.frames.lastSelectedChatIndex = selectedIndex
+        ChatModsModule.frames.lastSelectedButtonAlpha = selectedAlpha
+
+        for _, entry in ipairs(entries) do
+            SetChatHoverButtonsAlpha(entry.index, (entry.index == selectedIndex) and selectedAlpha or 0, entry, entry.index == selectedIndex, fadeBackgroundWithButtons)
+        end
+
+        SetPrimaryChatButtonsAlpha(selectedAlpha)
 
         if hasActiveTransition then
             ChatModsModule.frames.chatHoverIdleTicks = 0
@@ -421,10 +439,8 @@ local function ApplyChatFrameTweaks()
 
             local bf = _G["ChatFrame" .. i .. "ButtonFrame"]
             if bf then
-                StripButtonFrameBackground(bf)
                 if not bf.DragonUIBackgroundHooked then
                     bf:HookScript("OnShow", function(self)
-                        StripButtonFrameBackground(self)
                         OnChatHoverInteraction()
                     end)
                     bf.DragonUIBackgroundHooked = true
@@ -703,28 +719,35 @@ local HOVERABLE_LINK_TYPES = {
 }
 
 local function OnHyperlinkEnter(self, data, link)
+    if not ChatModsModule.applied or not data then return end
+
     local linkType = data:match("^(.-):")
     if HOVERABLE_LINK_TYPES[linkType] and IsAltKeyDown() then
         ShowUIPanel(GameTooltip)
         GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
         GameTooltip:SetHyperlink(link)
         GameTooltip:Show()
+        ChatModsModule.frames.linkHoverTooltipShown = true
     end
 end
 
 local function OnHyperlinkLeave(self, data, link)
+    if not ChatModsModule.applied or not data then return end
+
     local linkType = data:match("^(.-):")
-    if HOVERABLE_LINK_TYPES[linkType] then
+    if HOVERABLE_LINK_TYPES[linkType] and ChatModsModule.frames.linkHoverTooltipShown then
         HideUIPanel(GameTooltip)
+        ChatModsModule.frames.linkHoverTooltipShown = nil
     end
 end
 
 local function ApplyLinkHover()
     for i = 1, NUM_CHAT_WINDOWS do
         local frame = _G["ChatFrame" .. i]
-        if frame then
-            frame:SetScript("OnHyperlinkEnter", OnHyperlinkEnter)
-            frame:SetScript("OnHyperlinkLeave", OnHyperlinkLeave)
+        if frame and not frame.DragonUILinkHoverHooked then
+            frame:HookScript("OnHyperlinkEnter", OnHyperlinkEnter)
+            frame:HookScript("OnHyperlinkLeave", OnHyperlinkLeave)
+            frame.DragonUILinkHoverHooked = true
         end
     end
 end
@@ -734,11 +757,13 @@ end
 -- ============================================================================
 
 local afkDndCache = {}
-local function FilterAfkDnd(arg1, arg2)
-    if afkDndCache[arg2] and afkDndCache[arg2] == arg1 then
+local function FilterAfkDnd(self, event, msg, author, ...)
+    local key = (event or "") .. "\031" .. (author or "")
+    if msg and afkDndCache[key] and afkDndCache[key] == msg then
         return true
     end
-    afkDndCache[arg2] = arg1
+    afkDndCache[key] = msg
+    return false, msg, author, ...
 end
 
 -- ============================================================================
@@ -759,9 +784,18 @@ end
 
 local URL_IP_PATTERN = "(%d+%.%d+%.%d+%.%d+:?%d*/?%S*)"
 local URL_HYPERLINK_TEMPLATE = "|cffffffff|Hurl:%1|h[%1]|h|r"
+local URL_CHAT_EVENTS = {
+    "CHAT_MSG_CHANNEL", "CHAT_MSG_YELL", "CHAT_MSG_GUILD",
+    "CHAT_MSG_OFFICER", "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER",
+    "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_SAY",
+    "CHAT_MSG_WHISPER", "CHAT_MSG_BN_WHISPER", "CHAT_MSG_BN_CONVERSATION",
+}
 
 local function URLFilter(self, event, msg, ...)
     if not msg then return end
+    if not ChatModsModule.applied then
+        return false, msg, ...
+    end
     if not find(msg, ".", 1, true) then
         return
     end
@@ -779,16 +813,26 @@ local function URLFilter(self, event, msg, ...)
     end
 end
 
-local function ApplyURLDetection()
-    local chatEvents = {
-        "CHAT_MSG_CHANNEL", "CHAT_MSG_YELL", "CHAT_MSG_GUILD",
-        "CHAT_MSG_OFFICER", "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER",
-        "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_SAY",
-        "CHAT_MSG_WHISPER", "CHAT_MSG_BN_WHISPER", "CHAT_MSG_BN_CONVERSATION",
-    }
-    for _, event in ipairs(chatEvents) do
+local function RegisterURLFilters()
+    if ChatModsModule.hooks.urlFilter then return end
+
+    for _, event in ipairs(URL_CHAT_EVENTS) do
         ChatFrame_AddMessageEventFilter(event, URLFilter)
     end
+    ChatModsModule.hooks.urlFilter = true
+end
+
+local function UnregisterURLFilters()
+    if not ChatModsModule.hooks.urlFilter or not ChatFrame_RemoveMessageEventFilter then return end
+
+    for _, event in ipairs(URL_CHAT_EVENTS) do
+        ChatFrame_RemoveMessageEventFilter(event, URLFilter)
+    end
+    ChatModsModule.hooks.urlFilter = nil
+end
+
+local function ApplyURLDetection()
+    RegisterURLFilters()
 
     local currentLink
     local origOnHyperlinkShow = _G.ChatFrame_OnHyperlinkShow
@@ -833,7 +877,11 @@ local function ApplyURLDetection()
             return
         end
 
-        SetItemRef(link, text, button, self)
+        if origOnHyperlinkShow then
+            return origOnHyperlinkShow(self, link, text, button)
+        end
+
+        return SetItemRef(link, text, button, self)
     end
 end
 
@@ -925,6 +973,10 @@ local function ApplyChatCopy()
     if not ChatModsModule.hooks.chatTabMenuCopyText then
         hooksecurefunc("FCF_Tab_OnClick", function(tab, button)
             if not ChatModsModule.applied then return end
+
+            -- Shared tab-click refresh path (also used instead of a second hook).
+            RefreshChatFadeState()
+
             if button ~= "RightButton" then return end
             if not tab or not tab.GetID or tab:GetID() ~= 1 then return end
             if not UIDropDownMenu_CreateInfo or not UIDropDownMenu_AddButton then return end
@@ -964,6 +1016,17 @@ end
 -- ============================================================================
 
 local function ApplyStickyChannels()
+    if not ChatModsModule.originalStates.stickyChannels then
+        ChatModsModule.originalStates.stickyChannels = {
+            BN_WHISPER = ChatTypeInfo.BN_WHISPER and ChatTypeInfo.BN_WHISPER.sticky,
+            EMOTE = ChatTypeInfo.EMOTE and ChatTypeInfo.EMOTE.sticky,
+            OFFICER = ChatTypeInfo.OFFICER and ChatTypeInfo.OFFICER.sticky,
+            RAID_WARNING = ChatTypeInfo.RAID_WARNING and ChatTypeInfo.RAID_WARNING.sticky,
+            WHISPER = ChatTypeInfo.WHISPER and ChatTypeInfo.WHISPER.sticky,
+            YELL = ChatTypeInfo.YELL and ChatTypeInfo.YELL.sticky,
+        }
+    end
+
     ChatTypeInfo.BN_WHISPER.sticky = 0
     ChatTypeInfo.EMOTE.sticky = 0
     ChatTypeInfo.OFFICER.sticky = 1
@@ -971,8 +1034,7 @@ local function ApplyStickyChannels()
     ChatTypeInfo.WHISPER.sticky = 1
     ChatTypeInfo.YELL.sticky = 0
 
-    _G.CHAT_FRAME_TAB_NORMAL_NOMOUSE_ALPHA = 0
-    _G.CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA = 0
+    ApplyTabAlphaGlobals(GetModuleConfig())
 end
 
 -- ============================================================================
@@ -985,6 +1047,21 @@ local function ApplyChatModsSystem()
     -- Expand available chat font sizes (default WoW only has a few)
     ChatModsModule.originalStates.CHAT_FONT_HEIGHTS = CHAT_FONT_HEIGHTS
     CHAT_FONT_HEIGHTS = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
+
+    if not ChatModsModule.originalStates.tabAlphaGlobals then
+        ChatModsModule.originalStates.tabAlphaGlobals = {
+            normal = _G.CHAT_FRAME_TAB_NORMAL_NOMOUSE_ALPHA,
+            selected = _G.CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA,
+        }
+    end
+
+    if not ChatModsModule.originalStates.tellTargetSlash then
+        ChatModsModule.originalStates.tellTargetSlash = {
+            handler = SlashCmdList["DRAGONUI_TELLTARGET"],
+            slash1 = _G.SLASH_DRAGONUI_TELLTARGET1,
+            slash2 = _G.SLASH_DRAGONUI_TELLTARGET2,
+        }
+    end
 
     ApplyChatFrameTweaks()
     ApplyEditBoxPosition()
@@ -1030,6 +1107,14 @@ local function ApplyChatModsSystem()
         ChatModsModule.hooks.chatFadeWake = true
     end
 
+    if _G.FCF_SelectDockFrame and not ChatModsModule.hooks.chatDockSwitchRefresh then
+        hooksecurefunc("FCF_SelectDockFrame", function()
+            if not ChatModsModule.applied then return end
+            RefreshChatFadeState()
+        end)
+        ChatModsModule.hooks.chatDockSwitchRefresh = true
+    end
+
     ChatModsModule.applied = true
     StartChatButtonsHoverUpdater(true)
 end
@@ -1038,6 +1123,7 @@ local function RestoreChatModsSystem()
     if not ChatModsModule.applied then return end
 
     StopChatButtonsHoverUpdater()
+    ChatModsModule.frames.linkHoverTooltipShown = nil
 
     -- Remove filters on disable so re-enable does not stack duplicate handlers.
     if ChatModsModule.hooks.afkDndFilter and ChatFrame_RemoveMessageEventFilter then
@@ -1045,6 +1131,9 @@ local function RestoreChatModsSystem()
         ChatFrame_RemoveMessageEventFilter("CHAT_MSG_DND", FilterAfkDnd)
         ChatModsModule.hooks.afkDndFilter = nil
     end
+    afkDndCache = {}
+
+    UnregisterURLFilters()
 
     -- Restore chat frame and editbox backdrops
     for i = 1, CHAT_FRAME_LIMIT do
@@ -1068,6 +1157,30 @@ local function RestoreChatModsSystem()
     if ChatModsModule.originalStates.ChatFrame_OnHyperlinkShow then
         _G.ChatFrame_OnHyperlinkShow = ChatModsModule.originalStates.ChatFrame_OnHyperlinkShow
         ChatModsModule.originalStates.ChatFrame_OnHyperlinkShow = nil
+    end
+
+    if ChatModsModule.originalStates.tabAlphaGlobals then
+        _G.CHAT_FRAME_TAB_NORMAL_NOMOUSE_ALPHA = ChatModsModule.originalStates.tabAlphaGlobals.normal
+        _G.CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA = ChatModsModule.originalStates.tabAlphaGlobals.selected
+        ChatModsModule.originalStates.tabAlphaGlobals = nil
+    end
+
+    if ChatModsModule.originalStates.stickyChannels then
+        local sticky = ChatModsModule.originalStates.stickyChannels
+        if ChatTypeInfo.BN_WHISPER then ChatTypeInfo.BN_WHISPER.sticky = sticky.BN_WHISPER end
+        if ChatTypeInfo.EMOTE then ChatTypeInfo.EMOTE.sticky = sticky.EMOTE end
+        if ChatTypeInfo.OFFICER then ChatTypeInfo.OFFICER.sticky = sticky.OFFICER end
+        if ChatTypeInfo.RAID_WARNING then ChatTypeInfo.RAID_WARNING.sticky = sticky.RAID_WARNING end
+        if ChatTypeInfo.WHISPER then ChatTypeInfo.WHISPER.sticky = sticky.WHISPER end
+        if ChatTypeInfo.YELL then ChatTypeInfo.YELL.sticky = sticky.YELL end
+        ChatModsModule.originalStates.stickyChannels = nil
+    end
+
+    if ChatModsModule.originalStates.tellTargetSlash then
+        SlashCmdList["DRAGONUI_TELLTARGET"] = ChatModsModule.originalStates.tellTargetSlash.handler
+        _G.SLASH_DRAGONUI_TELLTARGET1 = ChatModsModule.originalStates.tellTargetSlash.slash1
+        _G.SLASH_DRAGONUI_TELLTARGET2 = ChatModsModule.originalStates.tellTargetSlash.slash2
+        ChatModsModule.originalStates.tellTargetSlash = nil
     end
 
     -- Restore right-click chat tab menu initializer
