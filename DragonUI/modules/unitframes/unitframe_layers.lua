@@ -107,11 +107,28 @@ local function UnitFrameUtil_UpdateFillBarBase(frame, realbar, previousTexture, 
 	bar:SetPoint("BOTTOMLEFT", previousTexture, "BOTTOMRIGHT", barOffsetX, 0);
 	local totalWidth, totalHeight = realbar:GetSize();
 	local _, totalMax = realbar:GetMinMaxValues();
+	if ( not totalMax or totalMax <= 0 ) then
+		bar:Hide();
+		if ( bar.overlay ) then
+			bar.overlay:Hide();
+		end
+		return previousTexture;
+	end
 	local barSize = (amount / totalMax) * totalWidth;
 	bar:SetWidth(barSize);
 	bar:Show();
 	if ( bar.overlay ) then
-		bar.overlay:SetTexCoord(0, barSize / bar.overlay.tileSize, 0, totalHeight / bar.overlay.tileSize);
+		local tileSize = bar.overlay.tileSize or 1;
+		if ( tileSize <= 0 ) then
+			tileSize = 1;
+		end
+		local texRight = barSize / tileSize;
+		local texBottom = totalHeight / tileSize;
+		if ( texRight < 0 ) then texRight = 0 end
+		if ( texRight > 1 ) then texRight = 1 end
+		if ( texBottom < 0 ) then texBottom = 0 end
+		if ( texBottom > 1 ) then texBottom = 1 end
+		bar.overlay:SetTexCoord(0, texRight, 0, texBottom);
 		bar.overlay:Show();
 	end
 	return bar;
