@@ -87,7 +87,7 @@ WTF/Account/<YourAccount>/SavedVariables/DragonUI*
 
 ### Utility And Quality Of Life
 
-- 💬 Chat enhancements: style skins, fade sync, movable editbox with adjustable opacity, URL detection, chat copy, vanilla chat buttons with hover visibility, and `/tt` whisper command.
+- 💬 Chat enhancements: style skins, fade sync, movable textbox with adjustable opacity, URL detection, chat copy, vanilla chat buttons with hover visibility, and `/tt` whisper command.
 - 💎 Item quality borders, enhanced tooltips with class-colored borders, and range indicator.
 - ⌨️ Easy-to-use keybinding mode on supported buttons.
 
