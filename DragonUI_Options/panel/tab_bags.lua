@@ -14,6 +14,41 @@ local LO = addon.LO
 local C = addon.PanelControls
 local Panel = addon.OptionsPanel
 
+local SET_ALL = ALL or "All"
+local SET_EQUIPMENT = "Equipment"
+local SET_USABLE = "Usable"
+local SET_NORMAL = "Normal"
+local SET_TRADE = "Trade"
+
+local function GetLocalizedCombuctorSetName(name)
+    if name == SET_EQUIPMENT then
+        return LO["Equipment"] or name
+    elseif name == SET_USABLE then
+        return LO["Usable"] or name
+    elseif name == SET_NORMAL then
+        return LO["Normal"] or name
+    elseif name == SET_TRADE then
+        return LO["Trade Bags"] or name
+    end
+    return name
+end
+
+local function NormalizeCombuctorSetName(name)
+    if not name then return name end
+
+    if name == SET_EQUIPMENT or name == (LO["Equipment"] or SET_EQUIPMENT) then
+        return SET_EQUIPMENT
+    elseif name == SET_USABLE or name == (LO["Usable"] or SET_USABLE) then
+        return SET_USABLE
+    elseif name == SET_NORMAL or name == (LO["Normal"] or SET_NORMAL) then
+        return SET_NORMAL
+    elseif name == SET_TRADE or name == (LO["Trade Bags"] or SET_TRADE) then
+        return SET_TRADE
+    end
+
+    return name
+end
+
 -- ============================================================================
 -- HELPERS
 -- ============================================================================
@@ -31,8 +66,9 @@ end
 local function HasSetInDB(setName)
     local db = GetCombuctorDB()
     if not db or not db.inventory or not db.inventory.sets then return false end
+    local normalizedName = NormalizeCombuctorSetName(setName)
     for _, s in ipairs(db.inventory.sets) do
-        if s == setName then return true end
+        if NormalizeCombuctorSetName(s) == normalizedName then return true end
     end
     return false
 end
@@ -40,29 +76,31 @@ end
 local function HasBankSetInDB(setName)
     local db = GetCombuctorDB()
     if not db or not db.bank or not db.bank.sets then return false end
+    local normalizedName = NormalizeCombuctorSetName(setName)
     for _, s in ipairs(db.bank.sets) do
-        if s == setName then return true end
+        if NormalizeCombuctorSetName(s) == normalizedName then return true end
     end
     return false
 end
 
 local function ToggleSetInList(sets, setName, enabled)
     if not sets then return end
+    local normalizedName = NormalizeCombuctorSetName(setName)
     if enabled then
         local found = false
         for _, s in ipairs(sets) do
-            if s == setName then found = true; break end
+            if NormalizeCombuctorSetName(s) == normalizedName then found = true; break end
         end
         if not found then
-            if setName == (ALL or "All") then
-                table.insert(sets, 1, setName)
+            if normalizedName == SET_ALL then
+                table.insert(sets, 1, normalizedName)
             else
-                table.insert(sets, setName)
+                table.insert(sets, normalizedName)
             end
         end
     else
         for i = #sets, 1, -1 do
-            if sets[i] == setName then
+            if NormalizeCombuctorSetName(sets[i]) == normalizedName then
                 table.remove(sets, i)
             end
         end
@@ -93,10 +131,12 @@ end
 local function IsSubtabExcluded(key, parentName, childName)
     local db = GetCombuctorDB()
     if not db or not db[key] or not db[key].exclude then return false end
-    local list = db[key].exclude[parentName]
+    local normalizedParent = NormalizeCombuctorSetName(parentName)
+    local normalizedChild = NormalizeCombuctorSetName(childName)
+    local list = db[key].exclude[normalizedParent] or db[key].exclude[parentName]
     if not list then return false end
     for _, name in ipairs(list) do
-        if name == childName then return true end
+        if NormalizeCombuctorSetName(name) == normalizedChild then return true end
     end
     return false
 end
@@ -104,25 +144,30 @@ end
 local function ToggleSubtab(parentName, childName, enabled)
     local db = GetCombuctorDB()
     if not db then return end
+    local normalizedParent = NormalizeCombuctorSetName(parentName)
+    local normalizedChild = NormalizeCombuctorSetName(childName)
     for _, key in ipairs({"inventory", "bank"}) do
         if db[key] then
             if not db[key].exclude then db[key].exclude = {} end
             if enabled then
-                local list = db[key].exclude[parentName]
+                local list = db[key].exclude[normalizedParent] or db[key].exclude[parentName]
                 if list then
                     for i = #list, 1, -1 do
-                        if list[i] == childName then table.remove(list, i) end
+                        if NormalizeCombuctorSetName(list[i]) == normalizedChild then table.remove(list, i) end
                     end
-                    if #list == 0 then db[key].exclude[parentName] = nil end
+                    if #list == 0 then
+                        db[key].exclude[normalizedParent] = nil
+                        db[key].exclude[parentName] = nil
+                    end
                 end
             else
-                if not db[key].exclude[parentName] then db[key].exclude[parentName] = {} end
-                local list = db[key].exclude[parentName]
+                if not db[key].exclude[normalizedParent] then db[key].exclude[normalizedParent] = {} end
+                local list = db[key].exclude[normalizedParent]
                 local found = false
                 for _, name in ipairs(list) do
-                    if name == childName then found = true; break end
+                    if NormalizeCombuctorSetName(name) == normalizedChild then found = true; break end
                 end
-                if not found then table.insert(list, childName) end
+                if not found then table.insert(list, normalizedChild) end
             end
         end
     end
@@ -204,14 +249,14 @@ local function BuildBagsTab(scroll)
     C:AddToggle(tabSection, {
         label = LO["Show 'All' Tab"],
         desc = LO["Show the 'All' category tab that displays all items without filtering."],
-        getFunc = function() return HasSetInDB(ALL or "All") end,
-        setFunc = function(val) ToggleInventorySet(ALL or "All", val) end,
+        getFunc = function() return HasSetInDB(SET_ALL) end,
+        setFunc = function(val) ToggleInventorySet(SET_ALL, val) end,
         disabled = function() return not IsCombuctorEnabled() end,
     })
 
     -- Category tabs (matching KPack Combuctor set names)
-    local Equipment = LO["Equipment"]
-    local Usable = LO["Usable"]
+    local Equipment = SET_EQUIPMENT
+    local Usable = SET_USABLE
     local Weapon, Armor, _, Consumable, _, TradeGood, _, _, Recipe, Gem, Misc, Quest = GetAuctionItemClasses()
     local Devices = select(10, GetAuctionItemSubClasses(6))
 
@@ -268,8 +313,8 @@ local function BuildBagsTab(scroll)
     C:AddToggle(bankSection, {
         label = LO["Show 'All' Tab"],
         desc = LO["Show the 'All' category tab that displays all items without filtering."],
-        getFunc = function() return HasBankSetInDB(ALL or "All") end,
-        setFunc = function(val) ToggleBankSet(ALL or "All", val) end,
+        getFunc = function() return HasBankSetInDB(SET_ALL) end,
+        setFunc = function(val) ToggleBankSet(SET_ALL, val) end,
         disabled = function() return not IsCombuctorEnabled() end,
     })
 
@@ -320,24 +365,24 @@ local function BuildBagsTab(scroll)
     C:AddDescription(subtabSection, LO["Configure which bottom subtabs appear within each category tab. Applies to both inventory and bank."])
 
     -- "All" category subtabs
-    C:AddLabel(subtabSection, "|cffAAAAAA" .. (ALL or LO["All"]) .. "|r")
+    C:AddLabel(subtabSection, "|cffAAAAAA" .. (LO["All"] or SET_ALL) .. "|r")
     C:AddToggle(subtabSection, {
         label = LO["Normal"],
         desc = LO["Show the Normal bags subtab (non-profession bags)."],
-        getFunc = function() return not IsSubtabExcluded("inventory", ALL or LO["All"], "Normal") end,
-        setFunc = function(val) ToggleSubtab(ALL or LO["All"], "Normal", val) end,
+        getFunc = function() return not IsSubtabExcluded("inventory", SET_ALL, SET_NORMAL) end,
+        setFunc = function(val) ToggleSubtab(SET_ALL, SET_NORMAL, val) end,
         disabled = function() return not IsCombuctorEnabled() end,
     })
     C:AddToggle(subtabSection, {
         label = LO["Trade Bags"],
         desc = LO["Show the Trade bags subtab (profession bags)."],
-        getFunc = function() return not IsSubtabExcluded("inventory", ALL or LO["All"], "Trade") end,
-        setFunc = function(val) ToggleSubtab(ALL or LO["All"], "Trade", val) end,
+        getFunc = function() return not IsSubtabExcluded("inventory", SET_ALL, SET_TRADE) end,
+        setFunc = function(val) ToggleSubtab(SET_ALL, SET_TRADE, val) end,
         disabled = function() return not IsCombuctorEnabled() end,
     })
 
     -- Equipment subtabs
-    C:AddLabel(subtabSection, "|cffAAAAAA" .. Equipment .. "|r")
+    C:AddLabel(subtabSection, "|cffAAAAAA" .. (LO["Equipment"] or Equipment) .. "|r")
     C:AddToggle(subtabSection, {
         label = Armor,
         desc = LO["Show the Armor subtab."],
@@ -361,7 +406,7 @@ local function BuildBagsTab(scroll)
     })
 
     -- Usable subtabs
-    C:AddLabel(subtabSection, "|cffAAAAAA" .. Usable .. "|r")
+    C:AddLabel(subtabSection, "|cffAAAAAA" .. (LO["Usable"] or Usable) .. "|r")
     C:AddToggle(subtabSection, {
         label = Consumable,
         desc = LO["Show the Consumable subtab."],

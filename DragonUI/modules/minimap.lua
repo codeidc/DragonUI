@@ -97,6 +97,16 @@ local function IsQuestMinimapPin(button)
         return true
     end
 
+    if button.GetNumChildren then
+        for i = 1, button:GetNumChildren() do
+            local child = select(i, button:GetChildren())
+            local childName = child and child.GetName and child:GetName()
+            if IsFrameWhitelisted(childName) then
+                return true
+            end
+        end
+    end
+
     return button.miniMapIcon or button.miniMapIconData or button.pfQuest or button.pfquest
 end
 

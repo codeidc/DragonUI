@@ -1012,19 +1012,19 @@ local function CreateCastbar(unitType)
     -- Create text elements
     if unitType == "player" then
         frames.castText = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlight')
-        frames.castText:SetPoint('BOTTOMLEFT', frames.textBackground, 'BOTTOMLEFT', 8, 2)
+        frames.castText:SetPoint('BOTTOMLEFT', frames.textBackground, 'BOTTOMLEFT', 8, 3)
         frames.castText:SetJustifyH("LEFT")
         frames.castText:Hide()
         
         frames.castTextCentered = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlight')
-        frames.castTextCentered:SetPoint('BOTTOM', frames.textBackground, 'BOTTOM', 0, 1)
+        frames.castTextCentered:SetPoint('BOTTOM', frames.textBackground, 'BOTTOM', 0, 2)
         frames.castTextCentered:SetPoint('LEFT', frames.textBackground, 'LEFT', 8, 0)
         frames.castTextCentered:SetPoint('RIGHT', frames.textBackground, 'RIGHT', -8, 0)
         frames.castTextCentered:SetJustifyH("CENTER")
         frames.castTextCentered:Hide()
         
         frames.timeValue = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlight')
-        frames.timeValue:SetPoint('BOTTOMRIGHT', frames.textBackground, 'BOTTOMRIGHT', -50, 2)
+        frames.timeValue:SetPoint('BOTTOMRIGHT', frames.textBackground, 'BOTTOMRIGHT', -50, 3)
         frames.timeValue:SetJustifyH("RIGHT")
         frames.timeValue:Hide()
         
@@ -1034,29 +1034,29 @@ local function CreateCastbar(unitType)
         frames.timeMax:Hide()
     else
         frames.castText = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
-        frames.castText:SetPoint('BOTTOMLEFT', frames.textBackground, 'BOTTOMLEFT', 6, 2)
+        frames.castText:SetPoint('BOTTOMLEFT', frames.textBackground, 'BOTTOMLEFT', 6, 3)
         frames.castText:SetJustifyH("LEFT")
         frames.castText:Hide()
         
         frames.castTextCentered = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
-        frames.castTextCentered:SetPoint('BOTTOM', frames.textBackground, 'BOTTOM', 0, 1)
+        frames.castTextCentered:SetPoint('BOTTOM', frames.textBackground, 'BOTTOM', 0, 2)
         frames.castTextCentered:SetPoint('LEFT', frames.textBackground, 'LEFT', 6, 0)
         frames.castTextCentered:SetPoint('RIGHT', frames.textBackground, 'RIGHT', -6, 0)
         frames.castTextCentered:SetJustifyH("CENTER")
         frames.castTextCentered:Hide()
         
         frames.castTextCompact = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
-        frames.castTextCompact:SetPoint('BOTTOMLEFT', frames.textBackground, 'BOTTOMLEFT', 6, 2)
+        frames.castTextCompact:SetPoint('BOTTOMLEFT', frames.textBackground, 'BOTTOMLEFT', 6, 3)
         frames.castTextCompact:SetJustifyH("LEFT")
         frames.castTextCompact:Hide()
         
         frames.castTimeText = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
-        frames.castTimeText:SetPoint('BOTTOMRIGHT', frames.textBackground, 'BOTTOMRIGHT', -6, 2)
+        frames.castTimeText:SetPoint('BOTTOMRIGHT', frames.textBackground, 'BOTTOMRIGHT', -6, 3)
         frames.castTimeText:SetJustifyH("RIGHT")
         frames.castTimeText:Hide()
         
         frames.castTimeTextCompact = frames.textBackground:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
-        frames.castTimeTextCompact:SetPoint('BOTTOMRIGHT', frames.textBackground, 'BOTTOMRIGHT', -6, 2)
+        frames.castTimeTextCompact:SetPoint('BOTTOMRIGHT', frames.textBackground, 'BOTTOMRIGHT', -6, 3)
         frames.castTimeTextCompact:SetJustifyH("RIGHT")
         frames.castTimeTextCompact:Hide()
     end

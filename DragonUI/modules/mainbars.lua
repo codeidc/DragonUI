@@ -2542,6 +2542,10 @@ local function SetSecondaryBarContainerVisibility(barName, enabled)
     local container = GetSecondaryBarContainerFrame(barName)
     if not container then return end
 
+    if InCombatLockdown() then
+        return
+    end
+
     if IsEditorModeActive() then
         if not container:IsShown() then
             container:Show()

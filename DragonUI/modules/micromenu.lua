@@ -2449,23 +2449,8 @@ end
         end
     end)
 
-    LFDSearchStatus:SetParent(MinimapBackdrop)
-    LFDSearchStatus:SetClearPoint('TOPRIGHT', MinimapBackdrop, 'TOPLEFT')
-
-    -- LFD Status reanchor
-    local function ReanchorLFDStatus()
-        if not LFDSearchStatus or not MiniMapLFGFrame then
-            return
-        end
-        LFDSearchStatus:ClearAllPoints()
-        LFDSearchStatus:SetPoint("BOTTOM", MiniMapLFGFrame, "TOP", 0, 30)
-    end
-
-    ReanchorLFDStatus()
-    if not MicromenuModule.hooks.LFDSearchStatus_Update then
-        hooksecurefunc("LFDSearchStatus_Update", ReanchorLFDStatus)
-        MicromenuModule.hooks.LFDSearchStatus_Update = true
-    end
+    -- Keep Blizzard's LFD status text/layout ownership intact. Reparenting this
+    -- frame causes missing queue/cooldown text on some clients and servers.
 
     -- ============================================================================
     -- SECTION 9: EVENT HANDLERS

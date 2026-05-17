@@ -209,7 +209,7 @@ local function SlashCommandHandler(input)
         end
         if addon.DebugVehicle then addon.DebugVehicle() else addon:Print(L["Vehicle debug not available"]) end
     elseif cmd == "ufl" then
-        if addon.DiagnoseUnitFrameLayers then addon.DiagnoseUnitFrameLayers() else addon:Print("UFL diagnostic not available") end
+        if addon.DiagnoseUnitFrameLayers then addon.DiagnoseUnitFrameLayers() else addon:Print(L["UFL diagnostic not available"]) end
     elseif cmd == "debugshadow" then
         if not addon.debugMode then
             addon:Print(L["Enable debug mode first with /dragonui debug on"])
@@ -222,15 +222,15 @@ local function SlashCommandHandler(input)
             for _, region in ipairs(regions) do
                 if region:IsShown() or (region.GetAlpha and region:GetAlpha() > 0) then
                     local rtype = region:GetObjectType()
-                    local name = region:GetName() or "(unnamed)"
+                    local name = region:GetName() or L["(unnamed)"]
                     local alpha = region:GetAlpha()
                     local layer, sublevel = "", ""
                     if region.GetDrawLayer then layer, sublevel = region:GetDrawLayer() end
                     local w, h = region:GetWidth(), region:GetHeight()
                     local tex = ""
                     if region.GetTexture then tex = tostring(region:GetTexture() or "") end
-                    local shown = region:IsShown() and "SHOWN" or "hidden"
-                    local visible = region:IsVisible() and "VISIBLE" or "invisible"
+                    local shown = region:IsShown() and L["SHOWN"] or L["hidden"]
+                    local visible = region:IsVisible() and L["VISIBLE"] or L["invisible"]
                     print(string.format("%s%s [%s] a=%.2f %s/%s %s %s %.0fx%.0f tex=%s",
                         prefix, name, rtype, alpha, shown, visible,
                         tostring(layer), tostring(sublevel), w, h, tex))
@@ -238,10 +238,10 @@ local function SlashCommandHandler(input)
             end
             local children = { frame:GetChildren() }
             for _, child in ipairs(children) do
-                local cname = child:GetName() or "(unnamed_frame)"
+                local cname = child:GetName() or L["(unnamed_frame)"]
                 local calpha = child:GetAlpha()
-                local shown = child:IsShown() and "SHOWN" or "hidden"
-                local visible = child:IsVisible() and "VISIBLE" or "invisible"
+                local shown = child:IsShown() and L["SHOWN"] or L["hidden"]
+                local visible = child:IsVisible() and L["VISIBLE"] or L["invisible"]
                 print(string.format("%s> %s [Frame] a=%.2f %s/%s",
                     prefix, cname, calpha, shown, visible))
                 InspectFrame(child, prefix .. "  ", depth + 1)
@@ -278,11 +278,11 @@ local function SlashCommandHandler(input)
                 local l, b, w, h = bg:GetRect()
                 local p1, parent, p2, x, y = bg:GetPoint(1)
                 local np = bg:GetNumPoints()
-                print(string.format("Rect: left=%.1f bottom=%.1f w=%.1f h=%.1f", l or 0, b or 0, w or 0, h or 0))
-                print(string.format("Point1: %s -> %s %s (%.1f, %.1f)", p1 or "?", parent and parent:GetName() or "?", p2 or "?", x or 0, y or 0))
-                print(string.format("NumPoints: %d", np))
+                print(string.format(L["Rect: left=%.1f bottom=%.1f w=%.1f h=%.1f"], l or 0, b or 0, w or 0, h or 0))
+                print(string.format(L["Point1: %s -> %s %s (%.1f, %.1f)"], p1 or "?", parent and parent:GetName() or "?", p2 or "?", x or 0, y or 0))
+                print(string.format(L["NumPoints: %d"], np))
                 local tc = {bg:GetTexCoord()}
-                print(string.format("TexCoord: %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f",
+                print(string.format(L["TexCoord: %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f"],
                     tc[1] or 0, tc[2] or 0, tc[3] or 0, tc[4] or 0,
                     tc[5] or 0, tc[6] or 0, tc[7] or 0, tc[8] or 0))
             else
@@ -331,7 +331,7 @@ local function SlashCommandHandler(input)
         local function Collect(frame, depth)
             if not frame or depth > 3 then return end
             for _, region in ipairs({frame:GetRegions()}) do
-                local name = region:GetName() or "(unnamed)"
+                local name = region:GetName() or L["(unnamed)"]
                 local rtype = region:GetObjectType()
                 local shown = region:IsShown()
                 local visible = region:IsVisible()
@@ -340,7 +340,7 @@ local function SlashCommandHandler(input)
                 table.insert(elements, {obj=region, name=name, type=rtype, shown=shown, visible=visible, tex=tex})
             end
             for _, child in ipairs({frame:GetChildren()}) do
-                local cname = child:GetName() or "(unnamed_frame)"
+                local cname = child:GetName() or L["(unnamed_frame)"]
                 table.insert(elements, {obj=child, name=cname, type="Frame", shown=child:IsShown(), visible=child:IsVisible(), tex=""})
                 Collect(child, depth+1)
             end
@@ -352,8 +352,8 @@ local function SlashCommandHandler(input)
             -- List all elements
             print("|cFF00FF00" .. L["=== TargetFrame elements (use /dui shadowtest N to toggle) ==="] .. "|r")
             for i, e in ipairs(elements) do
-                local vis = e.visible and "|cFF00FF00VIS|r" or "|cFFFF0000inv|r"
-                local sh = e.shown and "SHOWN" or "hidden"
+                local vis = e.visible and ("|cFF00FF00" .. L["VIS"] .. "|r") or ("|cFFFF0000" .. L["inv"] .. "|r")
+                local sh = e.shown and L["SHOWN"] or L["hidden"]
                 print(string.format("  |cFFFFD700%d|r. %s [%s] %s %s %s", i, e.name, e.type, sh, vis, e.tex))
             end
             print("|cFFFFD700" .. string.format(L["Total elements: %d"], #elements) .. "|r")

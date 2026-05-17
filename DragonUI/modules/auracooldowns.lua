@@ -26,8 +26,8 @@ addon.AuraCooldownsModule = AuraCooldownsModule
 
 if addon.RegisterModule then
     addon:RegisterModule("auracooldowns", AuraCooldownsModule,
-    "Target & Focus Aura Customization",
-    "Customize target/focus aura icons and timers.",
+    (addon.L and addon.L["Target & Focus Aura Customization"]) or "Target & Focus Aura Customization",
+    (addon.L and addon.L["Customize target/focus aura icons and timers."]) or "Customize target/focus aura icons and timers.",
         { lifecyclePrefix = "AuraCooldownText" })
 end
 

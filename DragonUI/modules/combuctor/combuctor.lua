@@ -128,6 +128,12 @@ setmetatable(mod, {
 -- ============================================================================
 
 local DB
+local SET_ALL = ALL or "All"
+local SET_EQUIPMENT = "Equipment"
+local SET_USABLE = "Usable"
+local SET_NORMAL = "Normal"
+local SET_TRADE = "Trade"
+
 local defaults = {
     inventory = {
         bags = { 0, 1, 2, 3, 4 },
@@ -153,18 +159,31 @@ local defaults = {
 
 -- Localization strings
 local L = {}
-L.InventoryTitle = "%s's Inventory"
-L.BankTitle = "%s's Bank"
-L.Inventory = "Inventory"
-L.Bank = "Bank"
-L.Bags = "Bags"
-L.BagToggle = "|cff00ff00Left-Click|r to toggle bag display"
-L.InventoryToggle = "|cff00ff00Right-Click|r to toggle inventory"
-L.BankToggle = "|cff00ff00Right-Click|r to toggle bank"
-L.MoveTip = "|cff00ff00Drag|r to move"
-L.ResetPositionTip = "|cff00ff00Alt+Right-Click|r to reset position"
-L.ToggleInventory = "Toggle Inventory"
-L.ToggleBank = "Toggle Bank"
+L.InventoryTitle = (addon.L and addon.L["%s's Inventory"]) or "%s's Inventory"
+L.BankTitle = (addon.L and addon.L["%s's Bank"]) or "%s's Bank"
+L.Inventory = (addon.L and addon.L["Inventory"]) or "Inventory"
+L.Bank = (addon.L and addon.L["Bank"]) or "Bank"
+L.Bags = (addon.L and addon.L["Bags"]) or "Bags"
+L.BagToggle = (addon.L and addon.L["|cff00ff00Left-Click|r to toggle bag display"]) or "|cff00ff00Left-Click|r to toggle bag display"
+L.InventoryToggle = (addon.L and addon.L["|cff00ff00Right-Click|r to toggle inventory"]) or "|cff00ff00Right-Click|r to toggle inventory"
+L.BankToggle = (addon.L and addon.L["|cff00ff00Right-Click|r to toggle bank"]) or "|cff00ff00Right-Click|r to toggle bank"
+L.MoveTip = (addon.L and addon.L["|cff00ff00Drag|r to move"]) or "|cff00ff00Drag|r to move"
+L.ResetPositionTip = (addon.L and addon.L["|cff00ff00Alt+Right-Click|r to reset position"]) or "|cff00ff00Alt+Right-Click|r to reset position"
+L.ToggleInventory = (addon.L and addon.L["Toggle Inventory"]) or "Toggle Inventory"
+L.ToggleBank = (addon.L and addon.L["Toggle Bank"]) or "Toggle Bank"
+
+local function GetSetDisplayName(name)
+    if name == SET_EQUIPMENT then
+        return (addon.L and addon.L["Equipment"]) or (addon.LO and addon.LO["Equipment"]) or name
+    elseif name == SET_USABLE then
+        return (addon.L and addon.L["Usable"]) or (addon.LO and addon.LO["Usable"]) or name
+    elseif name == SET_NORMAL then
+        return (addon.L and addon.L["Normal"]) or name
+    elseif name == SET_TRADE then
+        return (addon.L and addon.L["Trade"]) or name
+    end
+    return name
+end
 
 -- Localize auction item classes
 L.Weapon, L.Armor, L.Container, L.Consumable, L.Glyph, L.TradeGood, _, _, L.Recipe, L.Gem, L.Misc, L.Quest = GetAuctionItemClasses()
@@ -206,6 +225,45 @@ local function SetupDatabase()
     if not DB.inventory.exclude then DB.inventory.exclude = {} end
     if not DB.bank.sets then DB.bank.sets = {} end
     if not DB.bank.exclude then DB.bank.exclude = {} end
+
+    local localizedEquipment = (addon.L and addon.L["Equipment"]) or (addon.LO and addon.LO["Equipment"])
+    local localizedUsable = (addon.L and addon.L["Usable"]) or (addon.LO and addon.LO["Usable"])
+    local function NormalizeLocalizedSetName(name)
+        if not name then return name end
+        if name == SET_EQUIPMENT or (localizedEquipment and name == localizedEquipment) then
+            return SET_EQUIPMENT
+        end
+        if name == SET_USABLE or (localizedUsable and name == localizedUsable) then
+            return SET_USABLE
+        end
+        return name
+    end
+
+    local function NormalizeSetList(list)
+        if not list then return end
+        for i, name in ipairs(list) do
+            list[i] = NormalizeLocalizedSetName(name)
+        end
+    end
+
+    local function NormalizeExcludeTable(exclude)
+        if not exclude then return end
+        local normalized = {}
+        for parentName, childList in pairs(exclude) do
+            normalized[NormalizeLocalizedSetName(parentName)] = childList
+        end
+        for key in pairs(exclude) do
+            exclude[key] = nil
+        end
+        for key, value in pairs(normalized) do
+            exclude[key] = value
+        end
+    end
+
+    NormalizeSetList(DB.inventory.sets)
+    NormalizeSetList(DB.bank.sets)
+    NormalizeExcludeTable(DB.inventory.exclude)
+    NormalizeExcludeTable(DB.bank.exclude)
 end
 
 function mod:GetProfile()
@@ -734,19 +792,19 @@ do
     local BAGTYPE_PROFESSION = 0x0008 + 0x0010 + 0x0020 + 0x0040 + 0x0080 + 0x0200 + 0x0400 + 0x8000
 
     -- Additional localization for sets
-    L.Equipment = "Equipment"
-    L.Usable = "Usable"
-    L.Normal = "Normal"
-    L.Trade = "Trade"
+    L.Equipment = SET_EQUIPMENT
+    L.Usable = SET_USABLE
+    L.Normal = SET_NORMAL
+    L.Trade = SET_TRADE
 
     -- Register default item sets (matching KPack Combuctor structure)
 
     -- ALL: parent set
-    CombuctorSet:Register(ALL or "All", [[Interface\Icons\INV_Misc_EngGizmos_17]], function() return true end)
+    CombuctorSet:Register(SET_ALL, [[Interface\Icons\INV_Misc_EngGizmos_17]], function() return true end)
     -- ALL subtabs: All, Normal, Trade
-    CombuctorSet:Register(ALL or "All", nil, nil, ALL or "All")
-    CombuctorSet:Register(L.Normal, nil, function(player, bagType) return bagType and bagType == 0 end, ALL or "All")
-    CombuctorSet:Register(L.Trade, nil, function(player, bagType) return bagType and bit.band(bagType, BAGTYPE_PROFESSION) > 0 end, ALL or "All")
+    CombuctorSet:Register(SET_ALL, nil, nil, SET_ALL)
+    CombuctorSet:Register(L.Normal, nil, function(player, bagType) return bagType and bagType == 0 end, SET_ALL)
+    CombuctorSet:Register(L.Trade, nil, function(player, bagType) return bagType and bit.band(bagType, BAGTYPE_PROFESSION) > 0 end, SET_ALL)
 
     -- EQUIPMENT: parent set (armor + weapons)
     do
@@ -755,7 +813,7 @@ do
         end
         CombuctorSet:Register(L.Equipment, [[Interface\Icons\INV_Chest_Chain_04]], isEquipment)
         -- Equipment subtabs: All, Armor, Weapon, Trinket
-        CombuctorSet:Register(ALL or "All", nil, nil, L.Equipment)
+        CombuctorSet:Register(SET_ALL, nil, nil, L.Equipment)
     end
     do
         local function isArmor(_, _, _, _, _, _, _, itype, _, _, equipLoc)
@@ -789,7 +847,7 @@ do
         end
         CombuctorSet:Register(L.Usable, [[Interface\Icons\INV_Potion_93]], isUsable)
         -- Usable subtabs: All, Consumable, Devices
-        CombuctorSet:Register(ALL or "All", nil, nil, L.Usable)
+        CombuctorSet:Register(SET_ALL, nil, nil, L.Usable)
     end
     do
         local function isConsumable(_, _, _, _, _, _, _, itype)
@@ -810,7 +868,7 @@ do
             return itype == L.Quest
         end
         CombuctorSet:Register(L.Quest, [[Interface\QuestFrame\UI-QuestLog-BookIcon]], isQuestItem)
-        CombuctorSet:Register(ALL or "All", nil, nil, L.Quest)
+        CombuctorSet:Register(SET_ALL, nil, nil, L.Quest)
     end
 
     -- TRADE GOODS: parent set (trade goods + gems + recipes, excluding devices/explosives)
@@ -823,7 +881,7 @@ do
         end
         CombuctorSet:Register(L.TradeGood, [[Interface\Icons\INV_Fabric_Silk_02]], isTradeGood)
         -- Trade Goods subtabs: All, Trade Goods, Gem, Recipe
-        CombuctorSet:Register(ALL or "All", nil, nil, L.TradeGood)
+        CombuctorSet:Register(SET_ALL, nil, nil, L.TradeGood)
     end
     do
         local function isTradeGoodOnly(_, _, _, _, _, _, _, itype)
@@ -850,7 +908,7 @@ do
             return itype == L.Misc and (link:match("%d+") ~= "6265")
         end
         CombuctorSet:Register(L.Misc, [[Interface\Icons\INV_Misc_Rune_01]], isMiscItem)
-        CombuctorSet:Register(ALL or "All", nil, nil, L.Misc)
+        CombuctorSet:Register(SET_ALL, nil, nil, L.Misc)
     end
 end
 
@@ -2043,7 +2101,7 @@ do
 
     function SideTab:Set(set)
         self.set = set
-        self.tooltip = set.name
+        self.tooltip = GetSetDisplayName(set.name)
         if set.icon then
             self:SetNormalTexture(set.icon)
             self:GetNormalTexture():SetTexCoord(0.06, 0.94, 0.06, 0.94)
@@ -2178,10 +2236,11 @@ do
 
     function BottomTab:Set(set)
         self.set = set
+        local displayName = GetSetDisplayName(set.name)
         if set.icon then
-            self:SetFormattedText("|T%s:%d|t %s", set.icon, 16, set.name)
+            self:SetFormattedText("|T%s:%d|t %s", set.icon, 16, displayName)
         else
-            self:SetText(set.name)
+            self:SetText(displayName)
         end
         PanelTemplates_TabResize(self, 0)
         self:GetHighlightTexture():SetWidth(self:GetTextWidth() + 30)

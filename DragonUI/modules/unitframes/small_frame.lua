@@ -678,6 +678,12 @@ function UF.SmallFrame.Create(opts)
 
     local function RequestVisibilityRefresh()
         Module.pendingVisibilityRefresh = true
+
+        if addon and addon.CombatQueue then
+            addon.CombatQueue:Add(opts.configKey .. "_visibility_refresh", function()
+                ReconcileVisibility()
+            end)
+        end
     end
 
     local function OnEvent(self, event, ...)
