@@ -74,7 +74,7 @@ L["Profiles"] = "配置文件"
 L["Unit Frames"] = "单位框架"
 L["XP & Rep Bars"] = "经验值 & 声望条"
 L["Chat"] = "聊天"
-L["Appearance"] = "\u5916\u89c2"
+L["Appearance"] = "外观"
 
 -- ============================================================================
 -- 模块标签页
@@ -274,13 +274,13 @@ L["Chat Style Opacity"] = "聊天样式透明度"
 L["Minimum opacity of the custom chat background. At 0 it fades with tabs; above 0 it stays partially visible when idle."] = "自定义聊天背景的最小透明度。0时与标签同步淡出；超出0则空闲时仍部分可见。"
 L["Text Box Min Opacity"] = "输入框最小透明度"
 L["Minimum opacity of the text input box when idle. At 0 it fades with tabs; above 0 it stays partially visible."] = "空闲时文本输入框的最小透明度。0时与标签同步淡出；超出0则仍部分可见。"
-L["Chat Style"] = "\u804a\u5929\u6837\u5f0f"
-L["Visual style for the chat frame background."] = "\u804a\u5929\u6846\u80cc\u666f\u7684\u89c6\u89c9\u6837\u5f0f\u3002"
+L["Chat Style"] = "聊天样式"
+L["Visual style for the chat frame background."] = "聊天框背景的视觉样式。"
 L["Editbox Style"] = "输入框样式"
 L["Visual style for the chat input box background."] = "聊天输入框背景的视觉样式。"
-L["Dark"] = "\u6697\u8272"
-L["DragonUI Style"] = "DragonUI \u6837\u5f0f"
-L["Midnight"] = "\u5b50\u5915"
+L["Dark"] = "暗色"
+L["DragonUI Style"] = "DragonUI 样式"
+L["Midnight"] = "子夜"
 
 -- 背包整合 (Combuctor)
 L["Enable Combuctor"] = "启用背包整合 (Combuctor)"
