@@ -845,7 +845,7 @@ local function ApplyURLDetection()
     _G.ChatFrame_OnHyperlinkShow = function(self, link, text, button)
         if not StaticPopupDialogs["DRAGONUI_URLCOPY_DIALOG"] then
             StaticPopupDialogs["DRAGONUI_URLCOPY_DIALOG"] = {
-                text = "URL",
+                text = (addon.L and addon.L["URL"]) or "URL",
                 button2 = CLOSE or "Close",
                 hasEditBox = 1,
                 hasWideEditBox = 1,

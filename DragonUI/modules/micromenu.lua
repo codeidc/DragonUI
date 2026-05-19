@@ -2415,7 +2415,7 @@ end
     -- LFG Frame customization
     local function ApplyLFGFrameStyle()
         MiniMapLFGFrame:SetClearPoint('LEFT', _G.CharacterMicroButton, -32, 2)
-        MiniMapLFGFrame:SetScale(1.6)
+        MiniMapLFGFrame:SetScale(1.5)
         MiniMapLFGFrameBorder:SetTexture(nil)
         MiniMapLFGFrame.eye.texture:SetTexture(addon._dir .. 'uigroupfinderflipbookeye.tga')
     end
@@ -2424,7 +2424,7 @@ end
 
     MiniMapLFGFrame:SetScript('OnClick', function(self, button)
         local mode, submode = GetLFGMode();
-        if (button == "RightButton" or mode == "lfgparty" or mode == "abandonedInDungeon") then
+        if (button == "RightButton" or mode == "lfgparty") then
             PlaySound("igMainMenuOpen");
             local yOffset;
             if (mode == "queued") then
@@ -2442,8 +2442,11 @@ end
                 PlaySound("igCharacterInfoTab");
                 StaticPopupSpecial_Show(LFDDungeonReadyPopup);
             end
-        elseif (mode == "queued" or mode == "rolecheck") then
+        elseif (mode == "abandonedInDungeon" or mode == "queued" or mode == "rolecheck") then
             ToggleLFDParentFrame();
+            if LFDParentFrame and LFDParentFrame:IsShown() and LFDParentFrame_Update then
+                LFDParentFrame_Update()
+            end
         elseif (mode == "listed") then
             ToggleLFRParentFrame();
         end

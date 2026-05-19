@@ -103,13 +103,10 @@ addon.UFL_UnitGetTotalAbsorbs = UFL_UnitGetTotalAbsorbs;
 -- POWER BAR COLOR SETUP
 -- ============================================================================
 
-PowerBarColor = PowerBarColor or {};
-if PowerBarColor["RAGE"] then
-	PowerBarColor["RAGE"].fullPowerAnim = true;
-end
-if PowerBarColor["ENERGY"] then
-	PowerBarColor["ENERGY"].fullPowerAnim = true;
-end
+local FULL_POWER_ANIM_POWER_TYPES = {
+	["RAGE"] = true,
+	["ENERGY"] = true,
+}
 
 -- ============================================================================
 -- CORE BAR UPDATE FUNCTIONS
@@ -520,21 +517,25 @@ local function UnitFrameLayer_Initialize(self, myHealPredictionBar, otherHealPre
 			self.manabar.FullPowerFrame = CreateFrame("Frame", nil, self.manabar, "DragonUI_FullPowerFrameTemplate");
 
 			local powerType, powerToken = UnitPowerType(self.unit);
+			local colorSource = PowerBarColor;
 			local info = nil;
-			if PowerBarColor then
-				info = (powerToken and PowerBarColor[powerToken])
-					or (powerType and PowerBarColor[powerType])
-					or PowerBarColor["MANA"];
+			if colorSource then
+				info = (powerToken and colorSource[powerToken])
+					or (powerType and colorSource[powerType])
+					or colorSource["MANA"];
 			end
 			if not info then
 				info = { r = 1, g = 1, b = 1 };
 			end
+			local fullPowerAnim = FULL_POWER_ANIM_POWER_TYPES[powerToken]
+				or FULL_POWER_ANIM_POWER_TYPES[powerType]
+				or info.fullPowerAnim;
 
 			if self.manabar.FeedbackFrame.Initialize then
 				self.manabar.FeedbackFrame:Initialize(info, self.unit, powerType or 0);
 			end
 			if self.manabar.FullPowerFrame and self.manabar.FullPowerFrame.Initialize then
-				self.manabar.FullPowerFrame:Initialize(info.fullPowerAnim and true or false);
+				self.manabar.FullPowerFrame:Initialize(fullPowerAnim and true or false);
 			end
 		end
 	end

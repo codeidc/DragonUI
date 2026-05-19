@@ -924,12 +924,17 @@ local function CreateHoverFrames(frame, frameIndex)
     
     local healthBar = _G[frame:GetName() .. 'HealthBar']
     local manaBar = _G[frame:GetName() .. 'ManaBar']
+    local unitToken = "party" .. frameIndex
     
     -- Create hover frame for health bar
     if healthBar and not frame.DragonUI_HealthHover then
-        frame.DragonUI_HealthHover = CreateFrame("Frame", nil, frame.DragonUI_TextFrame)
+        frame.DragonUI_HealthHover = CreateFrame("Button", nil, frame.DragonUI_TextFrame, "SecureUnitButtonTemplate")
         frame.DragonUI_HealthHover:SetFrameLevel(frame.DragonUI_TextFrame:GetFrameLevel() + 1)
         frame.DragonUI_HealthHover:SetAllPoints(healthBar)
+        frame.DragonUI_HealthHover:RegisterForClicks("AnyUp")
+        frame.DragonUI_HealthHover:SetAttribute("unit", unitToken)
+        frame.DragonUI_HealthHover:SetAttribute("*type1", "target")
+        frame.DragonUI_HealthHover:SetAttribute("*type2", "togglemenu")
         frame.DragonUI_HealthHover:EnableMouse(true)
         frame.DragonUI_HealthHover:SetScript("OnEnter", function()
             hoverStates[frameIndex].health = true
@@ -954,9 +959,13 @@ local function CreateHoverFrames(frame, frameIndex)
     
     -- Create hover frame for mana bar
     if manaBar and not frame.DragonUI_ManaHover then
-        frame.DragonUI_ManaHover = CreateFrame("Frame", nil, frame.DragonUI_TextFrame)
+        frame.DragonUI_ManaHover = CreateFrame("Button", nil, frame.DragonUI_TextFrame, "SecureUnitButtonTemplate")
         frame.DragonUI_ManaHover:SetFrameLevel(frame.DragonUI_TextFrame:GetFrameLevel() + 1)
         frame.DragonUI_ManaHover:SetAllPoints(manaBar)
+        frame.DragonUI_ManaHover:RegisterForClicks("AnyUp")
+        frame.DragonUI_ManaHover:SetAttribute("unit", unitToken)
+        frame.DragonUI_ManaHover:SetAttribute("*type1", "target")
+        frame.DragonUI_ManaHover:SetAttribute("*type2", "togglemenu")
         frame.DragonUI_ManaHover:EnableMouse(true)
         frame.DragonUI_ManaHover:SetScript("OnEnter", function()
             hoverStates[frameIndex].mana = true
@@ -1285,7 +1294,7 @@ local function StylePartyFrames()
                 flash:SetTexCoord(GetPartyCoords("flash"))
                 flash:SetPoint('TOPLEFT', 2, -2)
                 flash:SetVertexColor(1, 0, 0, 1)
-                flash:SetDrawLayer('ARTWORK', 5)
+                flash:SetDrawLayer('OVERLAY', 1)
             end
 
             -- Create background and mark as styled
@@ -1313,6 +1322,14 @@ local function StylePartyFrames()
                     frame.DragonUI_BorderFrame.texture = border
                 end
 
+                if not frame.DragonUI_FlashContainer then
+                    local flashContainer = CreateFrame("Frame", nil, frame)
+                    flashContainer:SetFrameStrata("BACKGROUND")
+                    flashContainer:SetFrameLevel(frame:GetFrameLevel() + 6) -- Above border, below icons
+                    flashContainer:SetAllPoints(frame)
+                    frame.DragonUI_FlashContainer = flashContainer
+                end
+
                 -- Create icon container well above border frame
                 if not frame.DragonUI_IconContainer then
                     local iconContainer = CreateFrame("Frame", nil, frame)
@@ -1320,6 +1337,12 @@ local function StylePartyFrames()
                     iconContainer:SetFrameLevel(frame:GetFrameLevel() + 10)  -- Well above border (+3)
                     iconContainer:SetAllPoints(frame)
                     frame.DragonUI_IconContainer = iconContainer
+                end
+
+                if flash and frame.DragonUI_FlashContainer and flash:GetParent() ~= frame.DragonUI_FlashContainer then
+                    flash:SetParent(frame.DragonUI_FlashContainer)
+                    flash:ClearAllPoints()
+                    flash:SetPoint('TOPLEFT', frame, 'TOPLEFT', 2, -2)
                 end
 
                 -- Move icons to HIGH strata container and configure layers
