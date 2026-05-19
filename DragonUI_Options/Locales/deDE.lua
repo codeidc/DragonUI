@@ -500,6 +500,11 @@ L["Show on Hover Only"] = "Nur beim Darüberfahren anzeigen"
 L["Show in Combat Only"] = "Nur im Kampf anzeigen"
 L["Hide the main bar until you hover over it."] = "Hauptleiste ausblenden, bis du darüberfährst."
 L["Hide the main bar until you enter combat."] = "Hauptleiste ausblenden, bis du in den Kampf gehst."
+L["Hover/Combat Logic"] = "Hover/Kampf-Logik"
+L["When both hover and combat are enabled, choose whether both are required (AND) or either condition is enough (OR)."] = "Wenn Hover und Kampf aktiv sind, wähle ob beide Bedingungen nötig sind (UND) oder eine davon reicht (ODER)."
+L["AND (both required)"] = "UND (beide erforderlich)"
+L["OR (either condition)"] = "ODER (eine Bedingung reicht)"
+L["Bag Bar"] = "Taschenleiste"
 
 -- ============================================================================
 -- ADDITIONAL BARS TAB

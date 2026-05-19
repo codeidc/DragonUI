@@ -14,6 +14,10 @@ local LO = addon.LO
 local C = addon.PanelControls
 local Panel = addon.OptionsPanel
 
+local function RefreshVisibility()
+    if addon.RefreshActionBarVisibility then addon.RefreshActionBarVisibility() end
+end
+
 -- ============================================================================
 -- MICRO MENU TAB BUILDER
 -- ============================================================================
@@ -79,6 +83,79 @@ local function BuildMicromenuTab(scroll)
         callback = function()
             StaticPopup_Show("DRAGONUI_RELOAD_UI")
         end,
+    })
+
+    local visibility = C:AddSection(scroll, LO["Visibility"])
+    local logicValues = {
+        ["and"] = LO["AND (both required)"],
+        ["or"] = LO["OR (either condition)"],
+    }
+
+    C:AddToggle(visibility, {
+        label = LO["Show on Hover Only"],
+        dbPath = "actionbars.micro_show_on_hover",
+        callback = RefreshVisibility,
+    })
+
+    C:AddToggle(visibility, {
+        label = LO["Show in Combat Only"],
+        dbPath = "actionbars.micro_show_in_combat",
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(visibility, {
+        label = LO["Visible Alpha"],
+        desc = LO["Opacity when a bar is considered visible by hover/combat rules."],
+        dbPath = "actionbars.micro_visibility_shown_alpha",
+        min = 0, max = 1, step = 0.01,
+        isPercent = true,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(visibility, {
+        label = LO["Hidden Alpha"],
+        desc = LO["Opacity when a bar is hidden by hover/combat rules. Set above 0 to keep bars faintly visible."],
+        dbPath = "actionbars.micro_visibility_hidden_alpha",
+        min = 0, max = 1, step = 0.01,
+        isPercent = true,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(visibility, {
+        label = LO["Fade In Duration"],
+        desc = LO["Seconds used to fade bars in when they become visible."],
+        dbPath = "actionbars.micro_visibility_fade_in_duration",
+        min = 0, max = 1, step = 0.01,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(visibility, {
+        label = LO["Fade Out Duration"],
+        desc = LO["Seconds used to fade bars out when they become hidden."],
+        dbPath = "actionbars.micro_visibility_fade_out_duration",
+        min = 0, max = 1, step = 0.01,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(visibility, {
+        label = LO["Fade Out Delay"],
+        desc = LO["Delay before hover-out starts fading, useful to avoid flicker between buttons."],
+        dbPath = "actionbars.micro_visibility_fade_out_delay",
+        min = 0, max = 1, step = 0.01,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddDropdown(visibility, {
+        label = LO["Hover/Combat Logic"],
+        desc = LO["When both hover and combat are enabled, choose whether both are required (AND) or either condition is enough (OR)."],
+        dbPath = "actionbars.micro_visibility_logic",
+        values = logicValues,
+        callback = RefreshVisibility,
     })
 
 end

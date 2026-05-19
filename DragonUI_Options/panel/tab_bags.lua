@@ -14,6 +14,17 @@ local LO = addon.LO
 local C = addon.PanelControls
 local Panel = addon.OptionsPanel
 
+local function RefreshVisibility()
+    if addon.RefreshActionBarVisibility then addon.RefreshActionBarVisibility() end
+end
+
+local function RefreshVisibilityAndCollapsedBags()
+    RefreshVisibility()
+    if addon.db and addon.db.profile and addon.db.profile.micromenu and addon.db.profile.micromenu.bags_collapsed then
+        if addon.RefreshBags then addon.RefreshBags() end
+    end
+end
+
 local SET_ALL = ALL or "All"
 local SET_EQUIPMENT = "Equipment"
 local SET_USABLE = "Usable"
@@ -199,6 +210,79 @@ local function BuildBagsTab(scroll)
         callback = function()
             if addon.RefreshBagsPosition then addon.RefreshBagsPosition() end
         end,
+    })
+
+    local bagVisibility = C:AddSection(scroll, LO["Visibility"])
+    local logicValues = {
+        ["and"] = LO["AND (both required)"],
+        ["or"] = LO["OR (either condition)"],
+    }
+
+    C:AddToggle(bagVisibility, {
+        label = LO["Show on Hover Only"],
+        dbPath = "actionbars.bag_show_on_hover",
+        callback = RefreshVisibilityAndCollapsedBags,
+    })
+
+    C:AddToggle(bagVisibility, {
+        label = LO["Show in Combat Only"],
+        dbPath = "actionbars.bag_show_in_combat",
+        callback = RefreshVisibilityAndCollapsedBags,
+    })
+
+    C:AddSlider(bagVisibility, {
+        label = LO["Visible Alpha"],
+        desc = LO["Opacity when a bar is considered visible by hover/combat rules."],
+        dbPath = "actionbars.bag_visibility_shown_alpha",
+        min = 0, max = 1, step = 0.01,
+        isPercent = true,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(bagVisibility, {
+        label = LO["Hidden Alpha"],
+        desc = LO["Opacity when a bar is hidden by hover/combat rules. Set above 0 to keep bars faintly visible."],
+        dbPath = "actionbars.bag_visibility_hidden_alpha",
+        min = 0, max = 1, step = 0.01,
+        isPercent = true,
+        width = 250,
+        callback = RefreshVisibilityAndCollapsedBags,
+    })
+
+    C:AddSlider(bagVisibility, {
+        label = LO["Fade In Duration"],
+        desc = LO["Seconds used to fade bars in when they become visible."],
+        dbPath = "actionbars.bag_visibility_fade_in_duration",
+        min = 0, max = 1, step = 0.01,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(bagVisibility, {
+        label = LO["Fade Out Duration"],
+        desc = LO["Seconds used to fade bars out when they become hidden."],
+        dbPath = "actionbars.bag_visibility_fade_out_duration",
+        min = 0, max = 1, step = 0.01,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(bagVisibility, {
+        label = LO["Fade Out Delay"],
+        desc = LO["Delay before hover-out starts fading, useful to avoid flicker between buttons."],
+        dbPath = "actionbars.bag_visibility_fade_out_delay",
+        min = 0, max = 1, step = 0.01,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddDropdown(bagVisibility, {
+        label = LO["Hover/Combat Logic"],
+        desc = LO["When both hover and combat are enabled, choose whether both are required (AND) or either condition is enough (OR)."],
+        dbPath = "actionbars.bag_visibility_logic",
+        values = logicValues,
+        callback = RefreshVisibility,
     })
 
     -- ====================================================================

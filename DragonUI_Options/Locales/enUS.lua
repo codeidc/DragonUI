@@ -521,6 +521,11 @@ L["Show on Hover Only"] = true
 L["Show in Combat Only"] = true
 L["Hide the main bar until you hover over it."] = true
 L["Hide the main bar until you enter combat."] = true
+L["Hover/Combat Logic"] = true
+L["When both hover and combat are enabled, choose whether both are required (AND) or either condition is enough (OR)."] = true
+L["AND (both required)"] = true
+L["OR (either condition)"] = true
+L["Bag Bar"] = true
 
 -- ============================================================================
 -- ADDITIONAL BARS TAB

@@ -29,6 +29,11 @@ L["Cannot open options during combat."] = "전투 중 옵션 사용 불가"
 L["Open DragonUI Settings"] = "DragonUI 설정 열기"
 L["Open the DragonUI configuration panel."] = "DragonUI 설정 패널 열기"
 L["Use /dragonui to open the full settings panel."] = "/dragonui 입력 시 전체 설정 패널 열기"
+L["Hover/Combat Logic"] = "마우스오버/전투 로직"
+L["When both hover and combat are enabled, choose whether both are required (AND) or either condition is enough (OR)."] = "마우스오버와 전투가 모두 활성화된 경우, 두 조건 모두 필요한지(AND) 또는 하나만으로 충분한지(OR)를 선택합니다."
+L["AND (both required)"] = "AND (둘 다 필요)"
+L["OR (either condition)"] = "OR (하나만 충족)"
+L["Bag Bar"] = "가방 바"
 
 -- Quick Actions
 L["Quick Actions"] = "빠른 설정"

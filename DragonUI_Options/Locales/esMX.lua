@@ -500,6 +500,11 @@ L["Show on Hover Only"] = "Mostrar Solo al Pasar el Cursor"
 L["Show in Combat Only"] = "Mostrar Solo en Combate"
 L["Hide the main bar until you hover over it."] = "Ocultar la barra principal hasta que pases el cursor."
 L["Hide the main bar until you enter combat."] = "Ocultar la barra principal hasta que entres en combate."
+L["Hover/Combat Logic"] = "Lógica Cursor/Combate"
+L["When both hover and combat are enabled, choose whether both are required (AND) or either condition is enough (OR)."] = "Cuando cursor y combate estén activados, elige si se requieren ambos (Y) o si basta uno (O)."
+L["AND (both required)"] = "Y (ambos requeridos)"
+L["OR (either condition)"] = "O (cualquiera de los dos)"
+L["Bag Bar"] = "Barra de Bolsas"
 
 -- ============================================================================
 -- ADDITIONAL BARS TAB

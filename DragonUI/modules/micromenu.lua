@@ -192,10 +192,31 @@ local function SetBagCollapseState(collapsed)
     end
 end
 
+local function ShouldForceCollapsedSecondaryInvisible()
+    local actionbars = addon.db and addon.db.profile and addon.db.profile.actionbars
+    if not actionbars then
+        return false
+    end
+
+    local visibilityEnabled = actionbars.bag_show_on_hover or actionbars.bag_show_in_combat
+    if not visibilityEnabled then
+        return false
+    end
+
+    local hiddenAlpha = actionbars.bag_visibility_hidden_alpha
+    if hiddenAlpha == nil then
+        hiddenAlpha = actionbars.visibility_hidden_alpha
+    end
+
+    return (tonumber(hiddenAlpha) or 0) > 0
+end
+
 -- Bag icon refresh helper.
 -- In 3.3.5a, item textures can be temporarily unavailable right after reload;
 -- avoid clearing/hiding valid icon data on transient nil returns.
 local function RefreshBagSlotIcons()
+    local collapsed = GetBagCollapseState()
+    local forceHideCollapsed = collapsed and ShouldForceCollapsedSecondaryInvisible()
     for _, bagButton in pairs(bagslots) do
         if bagButton then
             local icon = _G[bagButton:GetName() .. 'IconTexture']
@@ -210,7 +231,7 @@ local function RefreshBagSlotIcons()
                     end
 
                     icon:Show()
-                    icon:SetAlpha(1)
+                    icon:SetAlpha(forceHideCollapsed and 0 or 1)
                     pcall(function()
                         icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
                     end)
@@ -247,6 +268,8 @@ end
 -- only the alpha fade needs to be applied here.
 local PAPERDOLL_BAG_PLACEHOLDER = "interface\\paperdoll\\ui-paperdoll-slot-bag"
 local function UpdateBagSlotAlpha()
+    local collapsed = GetBagCollapseState()
+    local forceHideCollapsed = collapsed and ShouldForceCollapsedSecondaryInvisible()
     for i = 1, #bagslots do
         local bagButton = bagslots[i]
         if bagButton then
@@ -270,13 +293,111 @@ local function UpdateBagSlotAlpha()
                 end
 
                 if not isEmpty then
-                    icon:SetAlpha(1)
+                    icon:SetAlpha(forceHideCollapsed and 0 or 1)
                 else
                     icon:SetAlpha(0)
                 end
             end
         end
     end
+end
+
+local collapsedSecondaryFadeDriver
+
+local function StopCollapsedSecondaryFade()
+    if collapsedSecondaryFadeDriver then
+        collapsedSecondaryFadeDriver:SetScript("OnUpdate", nil)
+    end
+end
+
+local function ApplyCollapsedSecondaryAlpha(alpha)
+    alpha = tonumber(alpha) or 0
+    if alpha < 0 then
+        alpha = 0
+    elseif alpha > 1 then
+        alpha = 1
+    end
+
+    for i = 1, #bagslots do
+        local bags = bagslots[i]
+        if bags then
+            bags:SetAlpha(alpha)
+
+            if bags.customBorder then
+                bags.customBorder:SetAlpha(alpha)
+            end
+            if bags.background then
+                bags.background:SetAlpha(alpha)
+            end
+
+            local icon = _G[bags:GetName() .. 'IconTexture']
+            if icon then
+                local inventorySlot = bags:GetID()
+                local bagLink = inventorySlot and GetInventoryItemLink("player", inventorySlot) or nil
+                icon:SetAlpha(bagLink and alpha or 0)
+            end
+        end
+    end
+end
+
+function addon.RefreshCollapsedSecondaryBagsVisibility(shouldShow)
+    if not IsModuleEnabled() then
+        return
+    end
+
+    local actionbars = addon.db and addon.db.profile and addon.db.profile.actionbars
+    if not actionbars or not GetBagCollapseState() then
+        StopCollapsedSecondaryFade()
+        return
+    end
+
+    local visibilityEnabled = actionbars.bag_show_on_hover or actionbars.bag_show_in_combat
+    local hiddenAlpha = actionbars.bag_visibility_hidden_alpha
+    if hiddenAlpha == nil then
+        hiddenAlpha = actionbars.visibility_hidden_alpha
+    end
+    hiddenAlpha = tonumber(hiddenAlpha) or 0
+
+    if (not visibilityEnabled) or hiddenAlpha > 0 then
+        StopCollapsedSecondaryFade()
+        return
+    end
+
+    if not shouldShow then
+        StopCollapsedSecondaryFade()
+        ApplyCollapsedSecondaryAlpha(0)
+        return
+    end
+
+    local startAlpha = 0
+    if bagslots[1] and bagslots[1].GetAlpha then
+        startAlpha = bagslots[1]:GetAlpha() or 0
+    end
+    if startAlpha >= 0.99 then
+        StopCollapsedSecondaryFade()
+        ApplyCollapsedSecondaryAlpha(1)
+        return
+    end
+
+    if not collapsedSecondaryFadeDriver then
+        collapsedSecondaryFadeDriver = CreateFrame("Frame")
+    end
+
+    local elapsed = 0
+    local duration = 2
+    collapsedSecondaryFadeDriver:SetScript("OnUpdate", function(_, delta)
+        elapsed = elapsed + delta
+        local progress = elapsed / duration
+
+        if progress >= 1 then
+            ApplyCollapsedSecondaryAlpha(1)
+            StopCollapsedSecondaryFade()
+            return
+        end
+
+        local alpha = startAlpha + ((1 - startAlpha) * progress)
+        ApplyCollapsedSecondaryAlpha(alpha)
+    end)
 end
 
 -- Atlas helpers
@@ -1574,6 +1695,7 @@ local function ApplyMicromenuSystem()
         CharacterBag0Slot:SetClearPoint('RIGHT', MainMenuBarBackpackButton, 'LEFT', -14, -2)
 
         if not GetBagCollapseState() then
+            StopCollapsedSecondaryFade()
             -- Expanded state
             for i, bags in pairs(bagslots) do
                 bags:Show()
@@ -1591,6 +1713,13 @@ local function ApplyMicromenuSystem()
                 elseif i == 4 then
                     bags:SetClearPoint('RIGHT', CharacterBag2Slot, 'LEFT', -4, 0)
                 end
+
+                if bags.customBorder then
+                    bags.customBorder:SetAlpha(1)
+                end
+                if bags.background then
+                    bags.background:SetAlpha(1)
+                end
             end
 
             if KeyRingButton then
@@ -1601,12 +1730,28 @@ local function ApplyMicromenuSystem()
             end
         else
             -- Collapsed state - bags behind main bag
+            local forceHideCollapsed = ShouldForceCollapsedSecondaryInvisible()
+            if forceHideCollapsed then
+                StopCollapsedSecondaryFade()
+            end
             for i, bags in pairs(bagslots) do
                 bags:Show()
-                bags:SetAlpha(1)
+                bags:SetAlpha(forceHideCollapsed and 0 or 1)
                 bags:ClearAllPoints()
                 bags:SetPoint('CENTER', MainMenuBarBackpackButton, 'CENTER', 0, 0)
                 bags:SetFrameLevel(MainMenuBarBackpackButton:GetFrameLevel() - 1)
+
+                if bags.customBorder then
+                    bags.customBorder:SetAlpha(forceHideCollapsed and 0 or 1)
+                end
+                if bags.background then
+                    bags.background:SetAlpha(forceHideCollapsed and 0 or 1)
+                end
+
+                local icon = _G[bags:GetName() .. 'IconTexture']
+                if icon then
+                    icon:SetAlpha(forceHideCollapsed and 0 or 1)
+                end
             end
 
             if KeyRingButton then
@@ -1614,7 +1759,12 @@ local function ApplyMicromenuSystem()
                 KeyRingButton:SetPoint('CENTER', MainMenuBarBackpackButton, 'CENTER', 0, 0)
                 KeyRingButton:SetFrameLevel(MainMenuBarBackpackButton:GetFrameLevel() - 1)
             end
+
+            if not forceHideCollapsed and addon.RefreshCollapsedSecondaryBagsVisibility and _G.pUiBagsBar then
+                addon.RefreshCollapsedSecondaryBagsVisibility((_G.pUiBagsBar:GetAlpha() or 1) > 0.01)
+            end
         end
+
     end
 
     function MainMenuMicroButtonMixin:bagbuttons_refresh()
@@ -2408,6 +2558,8 @@ end
                 highlight:set_atlas('bag-arrow-invert-2x')
                 SetBagCollapseState(false)
                 MainMenuMicroButtonMixin:bagbuttons_reposition()
+                UpdateBagSlotAlpha()
+                ScheduleBagSlotIconRefreshes()
             end
         end)
     end

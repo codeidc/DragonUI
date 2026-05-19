@@ -595,6 +595,21 @@ local function BuildVisibilityTab(scroll)
         callback = RefreshVisibility,
     })
 
+    local logicValues = {
+        ["and"] = LO["AND (both required)"],
+        ["or"] = LO["OR (either condition)"],
+    }
+
+    local function AddVisibilityModeOptions(section, barKey)
+        C:AddDropdown(section, {
+            label = LO["Hover/Combat Logic"],
+            desc = LO["When both hover and combat are enabled, choose whether both are required (AND) or either condition is enough (OR)."],
+            dbPath = "actionbars." .. barKey .. "_visibility_logic",
+            values = logicValues,
+            callback = RefreshVisibility,
+        })
+    end
+
     -- Enable/disable secondary bars
     local enableSection = C:AddSection(scroll, LO["Enable / Disable Bars"])
 
@@ -638,6 +653,7 @@ local function BuildVisibilityTab(scroll)
         dbPath = "actionbars.main_show_in_combat",
         callback = RefreshVisibility,
     })
+    AddVisibilityModeOptions(mainVis, "main")
 
     -- Bottom left hover/combat
     local blVis = C:AddSection(scroll, LO["Bottom Left Bar"])
@@ -653,6 +669,7 @@ local function BuildVisibilityTab(scroll)
         dbPath = "actionbars.bottom_left_show_in_combat",
         callback = RefreshVisibility,
     })
+    AddVisibilityModeOptions(blVis, "bottom_left")
 
     -- Bottom right hover/combat
     local brVis = C:AddSection(scroll, LO["Bottom Right Bar"])
@@ -668,6 +685,7 @@ local function BuildVisibilityTab(scroll)
         dbPath = "actionbars.bottom_right_show_in_combat",
         callback = RefreshVisibility,
     })
+    AddVisibilityModeOptions(brVis, "bottom_right")
 
     -- Right bar hover/combat
     local rightVis = C:AddSection(scroll, LO["Right Bar"])
@@ -683,6 +701,7 @@ local function BuildVisibilityTab(scroll)
         dbPath = "actionbars.right_show_in_combat",
         callback = RefreshVisibility,
     })
+    AddVisibilityModeOptions(rightVis, "right")
 
     -- Left bar hover/combat
     local leftVis = C:AddSection(scroll, LO["Left Bar"])
@@ -698,6 +717,8 @@ local function BuildVisibilityTab(scroll)
         dbPath = "actionbars.left_show_in_combat",
         callback = RefreshVisibility,
     })
+    AddVisibilityModeOptions(leftVis, "left")
+
 end
 
 -- ============================================================================

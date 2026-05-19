@@ -2680,7 +2680,85 @@ addon.visibilityStates = addon.visibilityStates or {
     bottom_right = { hovered = false, inCombat = false },
     right        = { hovered = false, inCombat = false },
     left         = { hovered = false, inCombat = false },
+    micro        = { hovered = false, inCombat = false },
+    bag          = { hovered = false, inCombat = false },
 }
+
+local VISIBILITY_BAR_ORDER = {
+    "main",
+    "bottom_left",
+    "bottom_right",
+    "right",
+    "left",
+    "micro",
+    "bag",
+}
+
+local MICROMENU_BUTTON_NAMES = {
+    "CharacterMicroButton",
+    "SpellbookMicroButton",
+    "TalentMicroButton",
+    "AchievementMicroButton",
+    "QuestLogMicroButton",
+    "SocialsMicroButton",
+    "LFDMicroButton",
+    "CollectionsMicroButton",
+    "PVPMicroButton",
+    "PathToAscensionMicroButton",
+    "ChallengesMicroButton",
+    "MainMenuMicroButton",
+    "HelpMicroButton",
+}
+
+local BAG_BUTTON_NAMES = {
+    "MainMenuBarBackpackButton",
+    "CharacterBag0Slot",
+    "CharacterBag1Slot",
+    "CharacterBag2Slot",
+    "CharacterBag3Slot",
+    "KeyRingButton",
+}
+
+local function GetVisibilityBarFrameMap()
+    local pUiMainBar = addon.pUiMainBar
+    return {
+        main         = pUiMainBar,
+        bottom_left  = MultiBarBottomLeft,
+        bottom_right = MultiBarBottomRight,
+        right        = MultiBarRight,
+        left         = MultiBarLeft,
+        micro        = _G.pUiMicroMenu,
+        bag          = _G.pUiBagsBar,
+    }
+end
+
+local function GetVisibilityLogic(config, barName)
+    local mode = config and config[barName .. "_visibility_logic"]
+    return mode == "or" and "or" or "and"
+end
+
+local function EvaluateShouldShowByConditions(config, barName, state)
+    local showOnHover = config and config[barName .. "_show_on_hover"]
+    local showInCombat = config and config[barName .. "_show_in_combat"]
+
+    if not showOnHover and not showInCombat then
+        return true
+    end
+
+    if showOnHover and showInCombat then
+        local mode = GetVisibilityLogic(config, barName)
+        if mode == "or" then
+            return state.hovered or state.inCombat
+        end
+        return state.hovered and state.inCombat
+    end
+
+    if showOnHover then
+        return state.hovered
+    end
+
+    return state.inCombat
+end
 
 -- Returns true if a bar has any visibility behavior enabled
 local function ShouldUseVisibility(barName)
@@ -2698,24 +2776,62 @@ local function Clamp01(value)
     return value
 end
 
-local function GetVisibilityFadeConfig()
+local function GetVisibilityFadeConfigPrefix(barName)
+    if barName == "micro" then
+        return "micro_visibility_"
+    end
+    if barName == "bag" then
+        return "bag_visibility_"
+    end
+    return "visibility_"
+end
+
+local function GetVisibilityFadeConfig(barName)
     local db = addon.db and addon.db.profile and addon.db.profile.actionbars
     if not db then
         return 1, 0, 0.15, 0.2
     end
 
-    local shownAlpha = Clamp01(db.visibility_shown_alpha == nil and 1 or db.visibility_shown_alpha)
-    local hiddenAlpha = Clamp01(db.visibility_hidden_alpha == nil and 0 or db.visibility_hidden_alpha)
-    local fadeInDuration = math.max(0, tonumber(db.visibility_fade_in_duration) or 0.15)
-    local fadeOutDuration = math.max(0, tonumber(db.visibility_fade_out_duration) or 0.2)
+    local prefix = GetVisibilityFadeConfigPrefix(barName)
+
+    local shownAlpha = db[prefix .. "shown_alpha"]
+    if shownAlpha == nil then
+        shownAlpha = db.visibility_shown_alpha
+    end
+    shownAlpha = Clamp01(shownAlpha == nil and 1 or shownAlpha)
+
+    local hiddenAlpha = db[prefix .. "hidden_alpha"]
+    if hiddenAlpha == nil then
+        hiddenAlpha = db.visibility_hidden_alpha
+    end
+    hiddenAlpha = Clamp01(hiddenAlpha == nil and 0 or hiddenAlpha)
+
+    local fadeInDuration = db[prefix .. "fade_in_duration"]
+    if fadeInDuration == nil then
+        fadeInDuration = db.visibility_fade_in_duration
+    end
+    fadeInDuration = math.max(0, tonumber(fadeInDuration) or 0.15)
+
+    local fadeOutDuration = db[prefix .. "fade_out_duration"]
+    if fadeOutDuration == nil then
+        fadeOutDuration = db.visibility_fade_out_duration
+    end
+    fadeOutDuration = math.max(0, tonumber(fadeOutDuration) or 0.2)
 
     return shownAlpha, hiddenAlpha, fadeInDuration, fadeOutDuration
 end
 
-local function GetVisibilityFadeOutDelay()
+local function GetVisibilityFadeOutDelay(barName)
     local db = addon.db and addon.db.profile and addon.db.profile.actionbars
     if not db then return 0.2 end
-    return math.max(0, tonumber(db.visibility_fade_out_delay) or 0.2)
+
+    local prefix = GetVisibilityFadeConfigPrefix(barName)
+    local fadeOutDelay = db[prefix .. "fade_out_delay"]
+    if fadeOutDelay == nil then
+        fadeOutDelay = db.visibility_fade_out_delay
+    end
+
+    return math.max(0, tonumber(fadeOutDelay) or 0.2)
 end
 
 local function GetMainBarCurrentAlpha()
@@ -2766,6 +2882,12 @@ local function ApplyBarVisibilityAlpha(barName, frame, alpha)
             frame:Show()
         end
         return
+    end
+
+    if barName == "bag" then
+        if MainMenuBarBackpackButton then
+            MainMenuBarBackpackButton:SetAlpha(alpha)
+        end
     end
 
     if frame then
@@ -2880,7 +3002,7 @@ function addon.UpdateActionBarVisibility(barName, frame)
     if not state then return end
 
     -- Check if bar is disabled (secondary bars only)
-    if barName ~= "main" then
+    if barName ~= "main" and barName ~= "micro" and barName ~= "bag" then
         local enabled = IsSecondaryBarEnabled(config, barName)
 
         SetSecondaryBarContainerVisibility(barName, enabled)
@@ -2905,12 +3027,13 @@ function addon.UpdateActionBarVisibility(barName, frame)
         end
     end
 
-    local showOnHover  = config[barName .. "_show_on_hover"]
-    local showInCombat = config[barName .. "_show_in_combat"]
-    local shownAlpha, hiddenAlpha, fadeInDuration, fadeOutDuration = GetVisibilityFadeConfig()
+    local shownAlpha, hiddenAlpha, fadeInDuration, fadeOutDuration = GetVisibilityFadeConfig(barName)
 
     -- If neither option enabled, bar is always visible
-    if not showOnHover and not showInCombat then
+    if not config[barName .. "_show_on_hover"] and not config[barName .. "_show_in_combat"] then
+        if barName == "bag" and addon.RefreshCollapsedSecondaryBagsVisibility then
+            addon.RefreshCollapsedSecondaryBagsVisibility(true)
+        end
         if barName ~= "main" then
             if not InCombatLockdown() then
                 frame:Show()  -- counteract any Blizzard :Hide()
@@ -2920,14 +3043,10 @@ function addon.UpdateActionBarVisibility(barName, frame)
         return
     end
 
-    -- Determine if bar should be visible
-    local shouldShow = true
-    if showOnHover and showInCombat then
-        shouldShow = state.hovered and state.inCombat
-    elseif showOnHover then
-        shouldShow = state.hovered
-    elseif showInCombat then
-        shouldShow = state.inCombat
+    local shouldShow = EvaluateShouldShowByConditions(config, barName, state)
+
+    if barName == "bag" and addon.RefreshCollapsedSecondaryBagsVisibility then
+        addon.RefreshCollapsedSecondaryBagsVisibility(shouldShow)
     end
 
     if barName ~= "main" and ShouldUseVisibility(barName) and not InCombatLockdown() then
@@ -2945,14 +3064,7 @@ function addon.RefreshActionBarVisibility()
     -- Skip during vehicle — vehicle module handles bar visibility
     if UnitHasVehicleUI and UnitHasVehicleUI("player") then return end
 
-    local pUiMainBar = addon.pUiMainBar
-    local barFrames = {
-        main         = pUiMainBar,
-        bottom_left  = MultiBarBottomLeft,
-        bottom_right = MultiBarBottomRight,
-        right        = MultiBarRight,
-        left         = MultiBarLeft,
-    }
+    local barFrames = GetVisibilityBarFrameMap()
 
     -- Normalise hover state from mouse position
     for barName, frame in pairs(barFrames) do
@@ -3008,7 +3120,7 @@ local function SetupActionBarHoverDetection(barName, frame)
                     addon.UpdateActionBarVisibility(barName, frame)
                 end
                 hoverTimers[barName] = nil
-            end, GetVisibilityFadeOutDelay())
+            end, GetVisibilityFadeOutDelay(barName))
         end
     end)
 
@@ -3038,7 +3150,58 @@ local function SetupActionBarHoverDetection(barName, frame)
                                 addon.UpdateActionBarVisibility(barName, frame)
                             end
                             hoverTimers[barName] = nil
-                        end, GetVisibilityFadeOutDelay())
+                        end, GetVisibilityFadeOutDelay(barName))
+                    end
+                end)
+                btn.__DragonUI_HoverHooked = true
+            end
+        end
+    end
+
+    local extraButtons = nil
+    if barName == "micro" then
+        extraButtons = {}
+        for _, buttonName in ipairs(MICROMENU_BUTTON_NAMES) do
+            local btn = _G[buttonName]
+            if btn then
+                table.insert(extraButtons, btn)
+            end
+        end
+    elseif barName == "bag" then
+        extraButtons = {}
+        for _, buttonName in ipairs(BAG_BUTTON_NAMES) do
+            local btn = _G[buttonName]
+            if btn then
+                table.insert(extraButtons, btn)
+            end
+        end
+    end
+
+    if extraButtons then
+        for _, btn in ipairs(extraButtons) do
+            if btn and not btn.__DragonUI_HoverHooked then
+                btn:HookScript("OnEnter", function()
+                    if hoverTimers[barName] and addon.core and addon.core.CancelTimer then
+                        addon.core:CancelTimer(hoverTimers[barName], true)
+                        hoverTimers[barName] = nil
+                    end
+                    if addon.visibilityStates[barName] then
+                        addon.visibilityStates[barName].hovered = true
+                        addon.UpdateActionBarVisibility(barName, frame)
+                    end
+                end)
+                btn:HookScript("OnLeave", function()
+                    if hoverTimers[barName] and addon.core and addon.core.CancelTimer then
+                        addon.core:CancelTimer(hoverTimers[barName], true)
+                    end
+                    if addon.core and addon.core.ScheduleTimer then
+                        hoverTimers[barName] = addon.core:ScheduleTimer(function()
+                            if addon.visibilityStates[barName] then
+                                addon.visibilityStates[barName].hovered = false
+                                addon.UpdateActionBarVisibility(barName, frame)
+                            end
+                            hoverTimers[barName] = nil
+                        end, GetVisibilityFadeOutDelay(barName))
                     end
                 end)
                 btn.__DragonUI_HoverHooked = true
@@ -3049,14 +3212,7 @@ end
 
 -- Combat state handler
 local function OnCombatStateChanged(inCombat)
-    local pUiMainBar = addon.pUiMainBar
-    local barFrameMap = {
-        main         = pUiMainBar,
-        bottom_left  = MultiBarBottomLeft,
-        bottom_right = MultiBarBottomRight,
-        right        = MultiBarRight,
-        left         = MultiBarLeft,
-    }
+    local barFrameMap = GetVisibilityBarFrameMap()
     for barName, state in pairs(addon.visibilityStates or {}) do
         state.inCombat = inCombat
         local frame = barFrameMap[barName]
@@ -3068,14 +3224,30 @@ end
 
 -- Initialize the full visibility system (called once after all bars exist)
 local function InitializeActionBarVisibility()
-    local pUiMainBar = addon.pUiMainBar
-    if not pUiMainBar then return end
+    local barFrames = GetVisibilityBarFrameMap()
+    if not barFrames.main then return end
 
-    SetupActionBarHoverDetection("main",         pUiMainBar)
-    SetupActionBarHoverDetection("bottom_left",  MultiBarBottomLeft)
-    SetupActionBarHoverDetection("bottom_right", MultiBarBottomRight)
-    SetupActionBarHoverDetection("right",        MultiBarRight)
-    SetupActionBarHoverDetection("left",         MultiBarLeft)
+    for barName, frame in pairs(barFrames) do
+        if frame and not frame.__DragonUI_VisibilityHooked then
+            SetupActionBarHoverDetection(barName, frame)
+            frame.__DragonUI_VisibilityHooked = true
+        end
+    end
+
+    if addon.core and addon.core.ScheduleTimer then
+        addon.core:ScheduleTimer(function()
+            local delayedFrames = GetVisibilityBarFrameMap()
+            for barName, frame in pairs(delayedFrames) do
+                if frame and not frame.__DragonUI_VisibilityHooked then
+                    SetupActionBarHoverDetection(barName, frame)
+                    frame.__DragonUI_VisibilityHooked = true
+                end
+            end
+            if addon.RefreshActionBarVisibility then
+                addon.RefreshActionBarVisibility()
+            end
+        end, 2)
+    end
 
     -- Combat events
     local combatFrame = CreateFrame("Frame")
