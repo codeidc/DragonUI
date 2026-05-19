@@ -224,6 +224,13 @@ local defaults = {
             right_enabled = true,
             left_enabled = true,
 
+            -- Hover fade behavior (Bartender4-style)
+            visibility_shown_alpha = 1,
+            visibility_hidden_alpha = 0,
+            visibility_fade_in_duration = 0.15,
+            visibility_fade_out_duration = 0.2,
+            visibility_fade_out_delay = 0.2,
+
             -- Hover/combat visibility per bar
             main_show_on_hover = false,
             main_show_in_combat = false,

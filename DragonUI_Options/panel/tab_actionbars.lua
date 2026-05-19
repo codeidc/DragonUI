@@ -546,6 +546,55 @@ local function BuildVisibilityTab(scroll)
     C:AddDescription(desc,
         LO["Control when action bars are visible. Bars can show only on hover, only in combat, or both. When no option is checked the bar is always visible."])
 
+    local fadeSection = C:AddSection(scroll, LO["Hover Fade"])
+
+    C:AddSlider(fadeSection, {
+        label = LO["Visible Alpha"],
+        desc = LO["Opacity when a bar is considered visible by hover/combat rules."],
+        dbPath = "actionbars.visibility_shown_alpha",
+        min = 0, max = 1, step = 0.01,
+        isPercent = true,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(fadeSection, {
+        label = LO["Hidden Alpha"],
+        desc = LO["Opacity when a bar is hidden by hover/combat rules. Set above 0 to keep bars faintly visible."],
+        dbPath = "actionbars.visibility_hidden_alpha",
+        min = 0, max = 1, step = 0.01,
+        isPercent = true,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(fadeSection, {
+        label = LO["Fade In Duration"],
+        desc = LO["Seconds used to fade bars in when they become visible."],
+        dbPath = "actionbars.visibility_fade_in_duration",
+        min = 0, max = 1, step = 0.01,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(fadeSection, {
+        label = LO["Fade Out Duration"],
+        desc = LO["Seconds used to fade bars out when they become hidden."],
+        dbPath = "actionbars.visibility_fade_out_duration",
+        min = 0, max = 1, step = 0.01,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
+    C:AddSlider(fadeSection, {
+        label = LO["Fade Out Delay"],
+        desc = LO["Delay before hover-out starts fading, useful to avoid flicker between buttons."],
+        dbPath = "actionbars.visibility_fade_out_delay",
+        min = 0, max = 1, step = 0.01,
+        width = 250,
+        callback = RefreshVisibility,
+    })
+
     -- Enable/disable secondary bars
     local enableSection = C:AddSection(scroll, LO["Enable / Disable Bars"])
 

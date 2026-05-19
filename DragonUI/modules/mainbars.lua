@@ -2689,8 +2689,144 @@ local function ShouldUseVisibility(barName)
     return db[barName .. "_show_on_hover"] or db[barName .. "_show_in_combat"]
 end
 
+local visibilityAnimations = {}
+
+local function Clamp01(value)
+    value = tonumber(value) or 0
+    if value < 0 then return 0 end
+    if value > 1 then return 1 end
+    return value
+end
+
+local function GetVisibilityFadeConfig()
+    local db = addon.db and addon.db.profile and addon.db.profile.actionbars
+    if not db then
+        return 1, 0, 0.15, 0.2
+    end
+
+    local shownAlpha = Clamp01(db.visibility_shown_alpha == nil and 1 or db.visibility_shown_alpha)
+    local hiddenAlpha = Clamp01(db.visibility_hidden_alpha == nil and 0 or db.visibility_hidden_alpha)
+    local fadeInDuration = math.max(0, tonumber(db.visibility_fade_in_duration) or 0.15)
+    local fadeOutDuration = math.max(0, tonumber(db.visibility_fade_out_duration) or 0.2)
+
+    return shownAlpha, hiddenAlpha, fadeInDuration, fadeOutDuration
+end
+
+local function GetVisibilityFadeOutDelay()
+    local db = addon.db and addon.db.profile and addon.db.profile.actionbars
+    if not db then return 0.2 end
+    return math.max(0, tonumber(db.visibility_fade_out_delay) or 0.2)
+end
+
+local function GetMainBarCurrentAlpha()
+    local btn = _G["ActionButton1"]
+    if btn and btn.GetAlpha then
+        return Clamp01(btn:GetAlpha())
+    end
+    return 1
+end
+
+local SetMainBarArtAlphaDeep
+
+local function ApplyMainBarVisualAlpha(alpha)
+    alpha = Clamp01(alpha)
+
+    for i = 1, 12 do
+        local btn = _G["ActionButton" .. i]
+        if btn then
+            btn:SetAlpha(alpha)
+            if not InCombatLockdown() then
+                btn:Show()
+            end
+        end
+    end
+
+    local buttonsCfg = addon.db and addon.db.profile and addon.db.profile.buttons
+    local baseArtAlpha = (buttonsCfg and buttonsCfg.hide_main_bar_background) and 0 or 1
+    local artAlpha = alpha * baseArtAlpha
+    if addon.pUiMainBarArt then addon.pUiMainBarArt:SetAlpha(artAlpha) end
+    if MainMenuBarArtFrame then MainMenuBarArtFrame:SetAlpha(artAlpha) end
+    if MainMenuBarLeftEndCap then MainMenuBarLeftEndCap:SetAlpha(alpha) end
+    if MainMenuBarRightEndCap then MainMenuBarRightEndCap:SetAlpha(alpha) end
+    if ActionBarUpButton then ActionBarUpButton:SetAlpha(artAlpha) end
+    if ActionBarDownButton then ActionBarDownButton:SetAlpha(artAlpha) end
+    if MainMenuBarPageNumber then MainMenuBarPageNumber:SetAlpha(artAlpha) end
+    if addon.pUiMainBar then
+        if addon.pUiMainBar.BorderArt then addon.pUiMainBar.BorderArt:SetAlpha(artAlpha) end
+        if addon.pUiMainBar.Background then addon.pUiMainBar.Background:SetAlpha(artAlpha) end
+    end
+    SetMainBarArtAlphaDeep(artAlpha)
+end
+
+local function ApplyBarVisibilityAlpha(barName, frame, alpha)
+    alpha = Clamp01(alpha)
+    if barName == "main" then
+        ApplyMainBarVisualAlpha(alpha)
+        if frame and not InCombatLockdown() then
+            frame:Show()
+        end
+        return
+    end
+
+    if frame then
+        frame:SetAlpha(alpha)
+        if ShouldUseVisibility(barName) and not InCombatLockdown() then
+            frame:Show()
+        end
+    end
+end
+
+local function FadeBarToAlpha(barName, frame, targetAlpha, duration)
+    if not frame then return end
+
+    targetAlpha = Clamp01(targetAlpha)
+    duration = math.max(0, tonumber(duration) or 0)
+
+    local currentAlpha = (barName == "main") and GetMainBarCurrentAlpha() or Clamp01(frame:GetAlpha() or 1)
+
+    if math.abs(currentAlpha - targetAlpha) <= 0.01 or duration <= 0 then
+        ApplyBarVisibilityAlpha(barName, frame, targetAlpha)
+        if visibilityAnimations[barName] and visibilityAnimations[barName].driver then
+            visibilityAnimations[barName].driver:SetScript("OnUpdate", nil)
+        end
+        visibilityAnimations[barName] = nil
+        return
+    end
+
+    local animation = visibilityAnimations[barName]
+    if not animation then
+        animation = { driver = CreateFrame("Frame") }
+        visibilityAnimations[barName] = animation
+    end
+
+    animation.frame = frame
+    animation.fromAlpha = currentAlpha
+    animation.toAlpha = targetAlpha
+    animation.duration = duration
+    animation.elapsed = 0
+
+    animation.driver:SetScript("OnUpdate", function(_, elapsed)
+        local data = visibilityAnimations[barName]
+        if not data then
+            return
+        end
+
+        data.elapsed = data.elapsed + elapsed
+        local progress = data.elapsed / data.duration
+        if progress >= 1 then
+            ApplyBarVisibilityAlpha(barName, data.frame, data.toAlpha)
+            data.driver:SetScript("OnUpdate", nil)
+            visibilityAnimations[barName] = nil
+            return
+        end
+
+        local alpha = data.fromAlpha + ((data.toAlpha - data.fromAlpha) * progress)
+        ApplyBarVisibilityAlpha(barName, data.frame, alpha)
+    end)
+end
+
 -- Deep alpha pass on main bar art textures  (skip functional bars/buttons)
-local function SetMainBarArtAlphaDeep(alpha)
+SetMainBarArtAlphaDeep = function(alpha)
     local pUiMainBar    = addon.pUiMainBar
     local pUiMainBarArt = addon.pUiMainBarArt
     if not pUiMainBar then return end
@@ -2751,6 +2887,10 @@ function addon.UpdateActionBarVisibility(barName, frame)
         SetSecondaryBarButtonsMouseEnabled(barName, enabled)
 
         if not enabled then
+            if visibilityAnimations[barName] and visibilityAnimations[barName].driver then
+                visibilityAnimations[barName].driver:SetScript("OnUpdate", nil)
+                visibilityAnimations[barName] = nil
+            end
             if not InCombatLockdown() then
                 if frame.EnableMouse then
                     frame:EnableMouse(false)
@@ -2767,34 +2907,16 @@ function addon.UpdateActionBarVisibility(barName, frame)
 
     local showOnHover  = config[barName .. "_show_on_hover"]
     local showInCombat = config[barName .. "_show_in_combat"]
+    local shownAlpha, hiddenAlpha, fadeInDuration, fadeOutDuration = GetVisibilityFadeConfig()
 
     -- If neither option enabled, bar is always visible
     if not showOnHover and not showInCombat then
-        if barName == "main" then
-            for i = 1, 12 do
-                local btn = _G["ActionButton" .. i]; if btn then btn:SetAlpha(1) end
-            end
-            -- Restore art/gryphon alpha (may have been set to 0 by previous visibility mode)
-            local buttonsCfg = addon.db.profile.buttons
-            local baseArtAlpha = (buttonsCfg and buttonsCfg.hide_main_bar_background) and 0 or 1
-            if addon.pUiMainBarArt  then addon.pUiMainBarArt:SetAlpha(baseArtAlpha) end
-            if MainMenuBarArtFrame  then MainMenuBarArtFrame:SetAlpha(baseArtAlpha) end
-            if MainMenuBarLeftEndCap  then MainMenuBarLeftEndCap:SetAlpha(1) end
-            if MainMenuBarRightEndCap then MainMenuBarRightEndCap:SetAlpha(1) end
-            if ActionBarUpButton   then ActionBarUpButton:SetAlpha(baseArtAlpha) end
-            if ActionBarDownButton then ActionBarDownButton:SetAlpha(baseArtAlpha) end
-            if MainMenuBarPageNumber then MainMenuBarPageNumber:SetAlpha(baseArtAlpha) end
-            if addon.pUiMainBar then
-                if addon.pUiMainBar.BorderArt then addon.pUiMainBar.BorderArt:SetAlpha(baseArtAlpha) end
-                if addon.pUiMainBar.Background then addon.pUiMainBar.Background:SetAlpha(baseArtAlpha) end
-            end
-            SetMainBarArtAlphaDeep(baseArtAlpha)
-        else
+        if barName ~= "main" then
             if not InCombatLockdown() then
                 frame:Show()  -- counteract any Blizzard :Hide()
             end
-            frame:SetAlpha(1)
         end
+        FadeBarToAlpha(barName, frame, 1, fadeInDuration)
         return
     end
 
@@ -2808,39 +2930,13 @@ function addon.UpdateActionBarVisibility(barName, frame)
         shouldShow = state.inCombat
     end
 
-    if barName == "main" then
-        -- Main bar: alpha-only on action buttons to keep XP/stance visible
-        local btnAlpha = shouldShow and 1 or 0
-        for i = 1, 12 do
-            local btn = _G["ActionButton" .. i]
-            if btn then btn:SetAlpha(btnAlpha); btn:Show() end
-        end
-        -- Control main bar art (gryphons, page arrows, background)
-        local buttonsCfg = addon.db.profile.buttons
-        local baseArtAlpha = (buttonsCfg and buttonsCfg.hide_main_bar_background) and 0 or 1
-        local artAlpha = shouldShow and baseArtAlpha or 0
-        if addon.pUiMainBarArt  then addon.pUiMainBarArt:SetAlpha(artAlpha) end
-        if MainMenuBarArtFrame  then MainMenuBarArtFrame:SetAlpha(artAlpha) end
-        if MainMenuBarLeftEndCap  then MainMenuBarLeftEndCap:SetAlpha(artAlpha) end
-        if MainMenuBarRightEndCap then MainMenuBarRightEndCap:SetAlpha(artAlpha) end
-        if ActionBarUpButton   then ActionBarUpButton:SetAlpha(artAlpha) end
-        if ActionBarDownButton then ActionBarDownButton:SetAlpha(artAlpha) end
-        if MainMenuBarPageNumber then MainMenuBarPageNumber:SetAlpha(artAlpha) end
-        if addon.pUiMainBar then
-            if addon.pUiMainBar.BorderArt then addon.pUiMainBar.BorderArt:SetAlpha(artAlpha) end
-            if addon.pUiMainBar.Background then addon.pUiMainBar.Background:SetAlpha(artAlpha) end
-        end
-        SetMainBarArtAlphaDeep(artAlpha)
-        -- Always keep the container shown for XP/stance
+    if barName ~= "main" and ShouldUseVisibility(barName) and not InCombatLockdown() then
         frame:Show()
-    else
-        -- Secondary bars: simple alpha
-        frame:SetAlpha(shouldShow and 1 or 0)
-        -- Keep frame shown for hover detection even when hidden-by-alpha
-        if ShouldUseVisibility(barName) then
-            frame:Show()
-        end
     end
+
+    local targetAlpha = shouldShow and shownAlpha or hiddenAlpha
+    local duration = shouldShow and fadeInDuration or fadeOutDuration
+    FadeBarToAlpha(barName, frame, targetAlpha, duration)
 end
 
 -- Refresh all bars (called from options or after profile change)
@@ -2912,7 +3008,7 @@ local function SetupActionBarHoverDetection(barName, frame)
                     addon.UpdateActionBarVisibility(barName, frame)
                 end
                 hoverTimers[barName] = nil
-            end, 0.25)
+            end, GetVisibilityFadeOutDelay())
         end
     end)
 
@@ -2942,7 +3038,7 @@ local function SetupActionBarHoverDetection(barName, frame)
                                 addon.UpdateActionBarVisibility(barName, frame)
                             end
                             hoverTimers[barName] = nil
-                        end, 0.25)
+                        end, GetVisibilityFadeOutDelay())
                     end
                 end)
                 btn.__DragonUI_HoverHooked = true
