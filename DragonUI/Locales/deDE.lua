@@ -168,6 +168,11 @@ L["Quest Tracker"] = "Questverfolgung"
 -- Mover tooltip strings
 L["Drag to move"] = "Ziehen zum Verschieben"
 L["Right-click to reset"] = "Rechtsklick zum Zurücksetzen"
+L["Status Tooltip:"] = "Status-Tooltip:"
+L["Top"] = "Oben"
+L["Bottom"] = "Unten"
+L["Left"] = "Links"
+L["Right"] = "Rechts"
 L["Error Messages"] = "Fehlermeldungen"
 L["ErrorMessages"] = "Fehlermeldungen"
 

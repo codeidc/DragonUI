@@ -50,6 +50,28 @@ local function IsModuleEnabled()
     return addon:IsModuleEnabled("micromenu")
 end
 
+local function GetLFGTooltipPosition()
+    local pos = addon.db and addon.db.profile and addon.db.profile.widgets and addon.db.profile.widgets.lfgframe
+        and addon.db.profile.widgets.lfgframe.tooltip_position
+    if pos == "TOP" or pos == "BOTTOM" or pos == "LEFT" or pos == "RIGHT" then
+        return pos
+    end
+    return "TOP"
+end
+
+local function GetLFDStatusAnchorSpec(position)
+    if position == "BOTTOM" then
+        return "TOP", "BOTTOM", 0, -30
+    elseif position == "LEFT" then
+        return "RIGHT", "LEFT", -24, 0
+    elseif position == "RIGHT" then
+        return "LEFT", "RIGHT", 24, 0
+    end
+
+    -- Default/current behavior.
+    return "BOTTOM", "TOP", 0, 30
+end
+
 -- ============================================================================
 -- SECTION 1: LOCALS AND CONSTANTS
 -- ============================================================================
@@ -914,6 +936,7 @@ local function RestoreMicromenuSystem()
     MicromenuModule.frames = {}
     MicromenuModule.hooks = {}
     MicromenuModule.applied = false
+    addon.ReanchorLFDSearchStatus = nil
 
     -- Update Blizzard UI
     if UpdateMicroButtons then
@@ -2612,9 +2635,12 @@ end
         if not LFDSearchStatus or not MiniMapLFGFrame then
             return
         end
+        local point, relativePoint, xOff, yOff = GetLFDStatusAnchorSpec(GetLFGTooltipPosition())
         LFDSearchStatus:ClearAllPoints()
-        LFDSearchStatus:SetPoint("BOTTOM", MiniMapLFGFrame, "TOP", 0, 30)
+        LFDSearchStatus:SetPoint(point, MiniMapLFGFrame, relativePoint, xOff, yOff)
     end
+
+    addon.ReanchorLFDSearchStatus = ReanchorLFDStatus
 
     ReanchorLFDStatus()
     if not MicromenuModule.hooks.LFDSearchStatus_Update then

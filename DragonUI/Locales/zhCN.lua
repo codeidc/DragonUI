@@ -165,6 +165,11 @@ L["Quest Tracker"] = "任务追踪"
 
 L["Drag to move"] = "拖动以移动"
 L["Right-click to reset"] = "右键重置"
+L["Status Tooltip:"] = "状态提示："
+L["Top"] = "上"
+L["Bottom"] = "下"
+L["Left"] = "左"
+L["Right"] = "右"
 L["Error Messages"] = "错误消息"
 L["ErrorMessages"] = "错误消息"
 

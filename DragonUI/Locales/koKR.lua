@@ -168,6 +168,11 @@ L["Quest Tracker"] = "퀘스트 추적기"
 -- Mover tooltip strings
 L["Drag to move"] = "드래그 이동"
 L["Right-click to reset"] = "우클릭으로 초기화"
+L["Status Tooltip:"] = "상태 툴팁:"
+L["Top"] = "위"
+L["Bottom"] = "아래"
+L["Left"] = "왼쪽"
+L["Right"] = "오른쪽"
 L["Error Messages"] = "오류 메시지"
 L["ErrorMessages"] = "오류 메시지"
 

@@ -702,13 +702,85 @@ local function GetDetachedResetActionForSelection()
     return nil, frameData
 end
 
+local function GetLFGTooltipPositionValue()
+    local widgets = addon.db and addon.db.profile and addon.db.profile.widgets
+    local lfgFrameConfig = widgets and widgets.lfgframe
+    local position = lfgFrameConfig and lfgFrameConfig.tooltip_position
+
+    if position == "TOP" or position == "BOTTOM" or position == "LEFT" or position == "RIGHT" then
+        return position
+    end
+
+    return "TOP"
+end
+
+local function SetLFGTooltipPositionValue(position)
+    if position ~= "TOP" and position ~= "BOTTOM" and position ~= "LEFT" and position ~= "RIGHT" then
+        return
+    end
+
+    addon.db.profile.widgets = addon.db.profile.widgets or {}
+    addon.db.profile.widgets.lfgframe = addon.db.profile.widgets.lfgframe or {}
+    addon.db.profile.widgets.lfgframe.tooltip_position = position
+
+    if addon.ReanchorLFDSearchStatus then
+        addon.ReanchorLFDSearchStatus()
+    end
+end
+
+local function SetLFGTooltipButtonState(button, isSelected)
+    if not button or not button.SetBackdropColor then
+        return
+    end
+
+    if isSelected then
+        button:SetBackdropColor(0.18, 0.35, 0.55, 1)
+        button:SetBackdropBorderColor(0.30, 0.75, 1.00, 1)
+    else
+        button:SetBackdropColor(0.16, 0.16, 0.18, 1)
+        button:SetBackdropBorderColor(0.09, 0.52, 0.82, 0.95)
+    end
+end
+
+local function UpdateEditorPanelLFGTooltipControls()
+    if not editorPanel then
+        return
+    end
+
+    local frameName = select(1, GetSelectedEditableFrameData())
+    local showControls = frameName == "lfgframe"
+    local selectedPosition = GetLFGTooltipPositionValue()
+
+    if editorPanel.lfgTooltipLabel then
+        if showControls then
+            editorPanel.lfgTooltipLabel:Show()
+        else
+            editorPanel.lfgTooltipLabel:Hide()
+        end
+    end
+
+    if not editorPanel.lfgTooltipButtons then
+        return
+    end
+
+    for position, button in pairs(editorPanel.lfgTooltipButtons) do
+        if showControls then
+            button:Show()
+            SetLFGTooltipButtonState(button, position == selectedPosition)
+        else
+            button:Hide()
+        end
+    end
+end
+
 local function SetEditorPanelExpanded(expanded)
     if not editorPanel then
         return
     end
 
-    local compactHeight = 80
-    local expandedHeight = 104
+    local hasLFGTooltipControls = editorPanel.lfgTooltipLabel and editorPanel.lfgTooltipLabel:IsShown()
+    local compactHeight = hasLFGTooltipControls and 128 or 80
+    local expandedHeight = compactHeight + 24
     local targetHeight = expanded and expandedHeight or compactHeight
     if editorPanel:GetHeight() ~= targetHeight then
         editorPanel:SetHeight(targetHeight)
@@ -719,6 +791,8 @@ local function UpdateEditorPanelResetButton()
     if not editorPanel or not editorPanel.resetSelectedButton then
         return
     end
+
+    UpdateEditorPanelLFGTooltipControls()
 
     local action = GetDetachedResetActionForSelection()
     if action then
@@ -934,6 +1008,50 @@ local function CreateEditorControlPanel()
     StyleEditorPanelButton(yPlus)
     yPlus:SetScript("OnClick", function() NudgeSelectedFrame(0, 1) end)
 
+    local lfgTooltipLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local LO = addon.L
+    lfgTooltipLabel:SetPoint("TOPLEFT", yLabel, "BOTTOMLEFT", 0, -8)
+    lfgTooltipLabel:SetText((LO and LO["Status Tooltip:"]) or "Status Tooltip:")
+    lfgTooltipLabel:Hide()
+    panel.lfgTooltipLabel = lfgTooltipLabel
+
+    panel.lfgTooltipButtons = {}
+    local lfgButtonLabels = {
+        TOP = (LO and LO["Top"]) or "Top",
+        BOTTOM = (LO and LO["Bottom"]) or "Bottom",
+        LEFT = (LO and LO["Left"]) or "Left",
+        RIGHT = (LO and LO["Right"]) or "Right"
+    }
+    local createdButtons = {}
+    for _, position in ipairs({"TOP", "BOTTOM", "LEFT", "RIGHT"}) do
+        local currentPosition = position
+        local positionButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+        positionButton:SetSize(64, 18)
+
+        if currentPosition == "TOP" then
+            positionButton:SetPoint("TOPLEFT", lfgTooltipLabel, "BOTTOMLEFT", 0, -4)
+        elseif currentPosition == "BOTTOM" then
+            positionButton:SetPoint("LEFT", createdButtons.TOP, "RIGHT", 6, 0)
+        elseif currentPosition == "LEFT" then
+            positionButton:SetPoint("TOPLEFT", createdButtons.TOP, "BOTTOMLEFT", 0, -4)
+        else -- RIGHT
+            positionButton:SetPoint("LEFT", createdButtons.LEFT, "RIGHT", 6, 0)
+        end
+
+        positionButton:SetText(lfgButtonLabels[currentPosition])
+        positionButton:SetFrameLevel(panel:GetFrameLevel() + 5)
+        StyleEditorPanelButton(positionButton)
+        positionButton:SetScript("OnClick", function()
+            SetLFGTooltipPositionValue(currentPosition)
+            UpdateEditorPanelLFGTooltipControls()
+            UpdateEditorPanelResetButton()
+        end)
+        positionButton:Hide()
+
+        panel.lfgTooltipButtons[currentPosition] = positionButton
+        createdButtons[currentPosition] = positionButton
+    end
+
     local resetSelectedButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     resetSelectedButton:SetSize(160, 20)
     resetSelectedButton:SetPoint("BOTTOM", panel, "BOTTOM", 0, 6)
@@ -970,6 +1088,7 @@ local function CreateEditorControlPanel()
     panel:SetScript("OnUpdate", function()
         UpdateEditorPanelCoords()
         UpdateEditorPanelResetButton()
+        UpdateEditorPanelLFGTooltipControls()
     end)
 
     panel:Hide()
@@ -1034,6 +1153,7 @@ function addon.SelectEditorFrame(frame)
     end
     panel.nameLabel:SetText(displayName or "Frame")
     UpdateEditorPanelCoords()
+    UpdateEditorPanelLFGTooltipControls()
     UpdateEditorPanelResetButton()
     panel:Show()
 end
@@ -1055,6 +1175,7 @@ function addon.DeselectEditorFrame()
         editorPanel.nameLabel:SetText("\226\128\148")
         editorPanel.xValue:SetText("\226\128\148")
         editorPanel.yValue:SetText("\226\128\148")
+        UpdateEditorPanelLFGTooltipControls()
         UpdateEditorPanelResetButton()
     end
 end

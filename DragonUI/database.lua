@@ -145,7 +145,8 @@ local defaults = {
             lfgframe = {
                 anchor = "BOTTOMRIGHT",
                 posX = -270,
-                posY = 20
+                posY = 20,
+                tooltip_position = "TOP"
             },
             tooltip = {
                 anchor = "BOTTOMRIGHT",

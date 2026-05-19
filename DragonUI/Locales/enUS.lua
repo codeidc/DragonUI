@@ -169,6 +169,11 @@ L["Quest Tracker"] = true
 -- Mover tooltip strings
 L["Drag to move"] = true
 L["Right-click to reset"] = true
+L["Status Tooltip:"] = true
+L["Top"] = true
+L["Bottom"] = true
+L["Left"] = true
+L["Right"] = true
 L["Error Messages"] = true
 L["ErrorMessages"] = true
 

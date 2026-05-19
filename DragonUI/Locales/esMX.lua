@@ -168,6 +168,11 @@ L["Quest Tracker"] = "Misiones"
 -- Mover tooltip strings
 L["Drag to move"] = "Arrastra para mover"
 L["Right-click to reset"] = "Clic der. para reiniciar"
+L["Status Tooltip:"] = "Tooltip de estado:"
+L["Top"] = "Arriba"
+L["Bottom"] = "Abajo"
+L["Left"] = "Izquierda"
+L["Right"] = "Derecha"
 L["Error Messages"] = "Mensajes de error"
 L["ErrorMessages"] = "Mensajes de error"
 
