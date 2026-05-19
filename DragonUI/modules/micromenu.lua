@@ -2414,6 +2414,8 @@ end
 
     -- LFG Frame customization
     local function ApplyLFGFrameStyle()
+        MiniMapLFGFrame:SetClearPoint('LEFT', _G.CharacterMicroButton, -32, 2)
+        MiniMapLFGFrame:SetScale(1.5)
         MiniMapLFGFrameBorder:SetTexture(nil)
         MiniMapLFGFrame.eye.texture:SetTexture(addon._dir .. 'uigroupfinderflipbookeye.tga')
     end
@@ -2422,7 +2424,7 @@ end
 
     MiniMapLFGFrame:SetScript('OnClick', function(self, button)
         local mode, submode = GetLFGMode();
-        if (button == "RightButton" or mode == "lfgparty" or mode == "abandonedInDungeon") then
+        if (button == "RightButton" or mode == "lfgparty") then
             PlaySound("igMainMenuOpen");
             local yOffset;
             if (mode == "queued") then
@@ -2440,15 +2442,33 @@ end
                 PlaySound("igCharacterInfoTab");
                 StaticPopupSpecial_Show(LFDDungeonReadyPopup);
             end
-        elseif (mode == "queued" or mode == "rolecheck") then
+        elseif (mode == "abandonedInDungeon" or mode == "queued" or mode == "rolecheck") then
             ToggleLFDParentFrame();
+            if LFDParentFrame and LFDParentFrame:IsShown() and LFDParentFrame_Update then
+                LFDParentFrame_Update()
+            end
         elseif (mode == "listed") then
             ToggleLFRParentFrame();
         end
     end)
 
-    -- Keep Blizzard's LFD status text/layout ownership intact. Reparenting this
-    -- frame causes missing queue/cooldown text on some clients and servers.
+    LFDSearchStatus:SetParent(MinimapBackdrop)
+    LFDSearchStatus:SetClearPoint('TOPRIGHT', MinimapBackdrop, 'TOPLEFT')
+
+    -- LFD Status reanchor
+    local function ReanchorLFDStatus()
+        if not LFDSearchStatus or not MiniMapLFGFrame then
+            return
+        end
+        LFDSearchStatus:ClearAllPoints()
+        LFDSearchStatus:SetPoint("BOTTOM", MiniMapLFGFrame, "TOP", 0, 30)
+    end
+
+    ReanchorLFDStatus()
+    if not MicromenuModule.hooks.LFDSearchStatus_Update then
+        hooksecurefunc("LFDSearchStatus_Update", ReanchorLFDStatus)
+        MicromenuModule.hooks.LFDSearchStatus_Update = true
+    end
 
     -- ============================================================================
     -- SECTION 9: EVENT HANDLERS
