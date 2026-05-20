@@ -705,7 +705,7 @@ end
 local function HookTargetFrameUpdate()
     if BossModule.targetFrameUpdateHooked then return end
 
-    hooksecurefunc("TargetFrame_Update", function(self)
+    local function RefreshBossTargetFrameLayout(self)
         local frameName = self:GetName()
         if not frameName or not frameName:match("^Boss%dTargetFrame$") then return end
 
@@ -823,6 +823,24 @@ local function HookTargetFrameUpdate()
         -- Re-hide Blizzard background
         local bg = _G[frameName .. "Background"]
         if bg then bg:SetAlpha(0) end
+    end
+
+    hooksecurefunc("TargetFrame_Update", function(self)
+        if InCombatLockdown() then
+            if addon.CombatQueue and self and self.GetName then
+                local frameName = self:GetName()
+                if frameName and frameName:match("^Boss%dTargetFrame$") then
+                    addon.CombatQueue:Add("boss_targetframe_update_" .. frameName, function()
+                        if self and self.GetName and self:GetName() == frameName and not InCombatLockdown() then
+                            RefreshBossTargetFrameLayout(self)
+                        end
+                    end)
+                end
+            end
+            return
+        end
+
+        RefreshBossTargetFrameLayout(self)
     end)
 
     BossModule.targetFrameUpdateHooked = true
