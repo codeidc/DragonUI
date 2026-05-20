@@ -251,6 +251,7 @@ L["Loaded addons:"] = true
 -- ============================================================================
 
 L["Changing this setting requires a UI reload to apply correctly."] = true
+L["URL"] = true
 L["Reload UI"] = true
 L["Not Now"] = true
 L["Disable"] = true
