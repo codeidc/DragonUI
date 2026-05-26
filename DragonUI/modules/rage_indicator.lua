@@ -166,6 +166,13 @@ local function RebuildButtonList()
             end
         end
     end
+
+    for i = 1, VEHICLE_MAX_ACTIONBUTTONS do
+        local button = _G["VehicleMenuBarActionButton" .. i]
+        if button then
+            table.insert(indicatorFrame.buttonList, button)
+        end
+    end
 end
 
 IsSystemActive = function()
