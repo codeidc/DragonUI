@@ -49,7 +49,7 @@ local QUALITY_COLORS = {
     [4] = { r = 0.64, g = 0.21, b = 0.93, a = 0.8 },  -- Epic (purple)
     [5] = { r = 1.00, g = 0.50, b = 0.00, a = 0.9 },  -- Legendary (orange)
     [6] = { r = 0.90, g = 0.80, b = 0.50, a = 0.9 },  -- Artifact (light gold)
-    [7] = { r = 0.00, g = 0.80, b = 1.00, a = 0.8 },  -- Heirloom (blizzard blue)
+    [7] = { r = 0.90, g = 0.80, b = 0.50, a = 0.9 },  -- Heirloom (gold/light-orange, matches WotLK 3.3.5a ITEM_QUALITY_COLORS[7] = e6cc80)
 }
 
 -- ============================================================================
