@@ -2460,6 +2460,13 @@ end
 
 -- Refresh function to be called from options.lua
 function addon:RefreshMinimap()
+    if InCombatLockdown() then
+        if addon.CombatQueue then
+            addon.CombatQueue:Add("minimap_refresh", addon.RefreshMinimap)
+        end
+        return
+    end
+
     if MinimapModule.isEnabled then
         MinimapModule:UpdateSettings()
         -- Also update tracking icon when settings change

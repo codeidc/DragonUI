@@ -2342,6 +2342,13 @@ end
 
 -- Refresh frame configuration
 local function RefreshPlayerFrame()
+    if InCombatLockdown() then
+        if addon.CombatQueue then
+            addon.CombatQueue:Add("player_refresh_frame", RefreshPlayerFrame)
+        end
+        return
+    end
+
     --  APPLY CONFIGURATION IMMEDIATELY
     ApplyPlayerConfig()
 

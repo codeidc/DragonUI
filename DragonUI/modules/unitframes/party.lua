@@ -1836,6 +1836,15 @@ end
 -- ===============================================================
 
 function PartyFrames:UpdateSettings()
+    if InCombatLockdown() then
+        if addon.CombatQueue then
+            addon.CombatQueue:Add("party_update_settings", function()
+                PartyFrames:UpdateSettings()
+            end)
+        end
+        return
+    end
+
     -- Check initial configuration
     if not addon.db or not addon.db.profile or not addon.db.profile.widgets or not addon.db.profile.widgets.party then
         self:LoadDefaultSettings()
