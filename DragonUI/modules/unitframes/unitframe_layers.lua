@@ -660,68 +660,100 @@ local function ApplyUnitFrameLayersSystem()
 	if UnitFrameLayersModule.applied then return end
 	EnsureLibs();
 
-	-- Override global UnitFrameHealthBar_OnUpdate to add animated loss + heal prediction
-	-- (Blizzard health bars call this via SetScript("OnUpdate"); replacing the global
-	-- automatically applies to all bars that reference it by name.)
+	-- Do NOT replace the global Blizzard secure functions
+	-- UnitFrameHealthBar_OnUpdate / UnitFrameManaBar_OnUpdate. Reassigning
+	-- these tainted them, which then propagated into protected paths used
+	-- by PartyMemberFrame (HealthBar/ManaBar :Show()) and the global
+	-- UnitFrameHealthBar_OnUpdate symbol itself, producing the taint log
+	-- entries `Global variable UnitFrameHealthBar_OnUpdate tainted` and
+	-- `Action blocked: PartyMemberFrameNHealthBar:Show()` during combat.
+	-- Instead, hook the globals additively. Blizzard's original handles
+	-- self:SetValue(currValue) / self.currValue / TextStatusBar_UpdateTextString;
+	-- we only need to drive the animated loss bar and heal prediction
+	-- overlay on top of that. Track the previous value per bar via a side
+	-- table so we can still feed the AnimatedLossBar both old and new values
+	-- without rewriting the secure function.
 	if orig_UnitFrameHealthBar_OnUpdate and not UnitFrameLayersModule.hooks["UnitFrameHealthBar_OnUpdate_override"] then
-		_G.UnitFrameHealthBar_OnUpdate = function(self)
-			if not IsModuleEnabled() then
-				return orig_UnitFrameHealthBar_OnUpdate(self);
+		local lastHealthValue = {};
+		hooksecurefunc("UnitFrameHealthBar_OnUpdate", function(self)
+			if not IsModuleEnabled() then return end
+			if self.disconnected or self.lockValues then return end
+			local unit = self.unit;
+			if not unit then return end
+			if self.ignoreNoUnit and not UnitGUID(unit) then return end
+
+			local currValue = UnitHealth(unit);
+			local prev = lastHealthValue[self];
+			if prev == nil then
+				-- First hook pass for a bar: seed with current/cached value so
+				-- AnimatedLossBar math never receives nil previousHealth.
+				prev = self.currValue or currValue;
+				lastHealthValue[self] = prev;
 			end
-			if ( not self.disconnected and not self.lockValues ) then
-				local currValue = UnitHealth(self.unit);
-				local animatedLossBar = self.AnimatedLossBar;
-				if ( currValue ~= self.currValue ) then
-					if ( not self.ignoreNoUnit or UnitGUID(self.unit) ) then
-						if animatedLossBar then
-							animatedLossBar:UpdateHealth(currValue, self.currValue);
-						end
-						self:SetValue(currValue);
-						self.currValue = currValue;
-						TextStatusBar_UpdateTextString(self);
-						UnitFrameHealPredictionBars_Update(self:GetParent());
-					end
-				end
+			local animatedLossBar = self.AnimatedLossBar;
+			if prev ~= currValue then
 				if animatedLossBar then
-					animatedLossBar:UpdateLossAnimation(currValue);
+					animatedLossBar:UpdateHealth(currValue, prev);
 				end
+				if UnitFrameHealPredictionBars_Update then
+					UnitFrameHealPredictionBars_Update(self:GetParent());
+				end
+				lastHealthValue[self] = currValue;
 			end
-		end;
+			if animatedLossBar then
+				animatedLossBar:UpdateLossAnimation(currValue);
+			end
+		end);
 		UnitFrameLayersModule.hooks["UnitFrameHealthBar_OnUpdate_override"] = true;
 	end
 
-	-- Override global UnitFrameManaBar_OnUpdate to add predicted cost + builder/spender feedback
+	-- Same rationale for the mana bar OnUpdate global.
+	-- The DragonUI extras here (FeedbackFrame / FullPowerFrame animations
+	-- and predicted-cost rendering) only need to read state and call
+	-- additive methods; they do not need to take over Blizzard's value
+	-- propagation. Use an additive hook to avoid tainting the global.
 	if orig_UnitFrameManaBar_OnUpdate and not UnitFrameLayersModule.hooks["UnitFrameManaBar_OnUpdate_override"] then
-		_G.UnitFrameManaBar_OnUpdate = function(self)
-			if not IsModuleEnabled() then
-				return orig_UnitFrameManaBar_OnUpdate(self);
+		local lastPowerValue = {};
+		hooksecurefunc("UnitFrameManaBar_OnUpdate", function(self)
+			if not IsModuleEnabled() then return end
+			if self.disconnected or self.lockValues then return end
+			local unit = self.unit;
+			if not unit then return end
+			if self.ignoreNoUnit and not UnitGUID(unit) then return end
+
+			local parent = self:GetParent();
+			local predictedCost = parent and parent.predictedPowerCost;
+			local currValue = UnitPower(unit, self.powerType);
+			if predictedCost then
+				currValue = currValue - (addon.UFL_Round or math.floor)(predictedCost);
 			end
-			if ( not self.disconnected and not self.lockValues ) then
-				local predictedCost = self:GetParent().predictedPowerCost;
-				local currValue = UnitPower(self.unit, self.powerType);
-				if (predictedCost) then
-					currValue = currValue - (addon.UFL_Round or math.floor)(predictedCost);
-				end
-				if ( currValue ~= self.currValue or self.forceUpdate ) then
-					self.forceUpdate = nil;
-					if ( not self.ignoreNoUnit or UnitGUID(self.unit) ) then
-						if ( self.FeedbackFrame ) then
-							local oldValue = self.currValue or 0;
-							local maxValue = self.FeedbackFrame.maxValue;
-							if ( maxValue and maxValue ~= 0 and math.abs(currValue - oldValue) / maxValue > 0.1 ) then
-								self.FeedbackFrame:StartFeedbackAnim(oldValue, currValue);
-							end
-						end
-						if ( self.FullPowerFrame and self.FullPowerFrame.active ) then
-							self.FullPowerFrame:StartAnimIfFull(self.currValue or 0, currValue);
-						end
-						self:SetValue(currValue);
-						self.currValue = currValue;
-						TextStatusBar_UpdateTextString(self);
+
+			-- Keep pre-cost visualization behavior from the old override:
+			-- the mana bar value tracks the predicted post-cast amount so
+			-- cost prediction direction stays consistent with DragonUI's
+			-- original look.
+			if self:GetValue() ~= currValue or self.forceUpdate then
+				self.forceUpdate = nil;
+				self:SetValue(currValue);
+				self.currValue = currValue;
+				TextStatusBar_UpdateTextString(self);
+			end
+
+			local prev = lastPowerValue[self];
+			if prev ~= currValue then
+				if self.FeedbackFrame then
+					local oldValue = prev or 0;
+					local maxValue = self.FeedbackFrame.maxValue;
+					if maxValue and maxValue ~= 0 and math.abs(currValue - oldValue) / maxValue > 0.1 then
+						self.FeedbackFrame:StartFeedbackAnim(oldValue, currValue);
 					end
 				end
+				if self.FullPowerFrame and self.FullPowerFrame.active then
+					self.FullPowerFrame:StartAnimIfFull(prev or 0, currValue);
+				end
+				lastPowerValue[self] = currValue;
 			end
-		end;
+		end);
 		UnitFrameLayersModule.hooks["UnitFrameManaBar_OnUpdate_override"] = true;
 	end
 
