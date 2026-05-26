@@ -107,6 +107,30 @@ local function IsQuestMinimapPin(button)
         end
     end
 
+    -- pfQuest/Questie minimap pins are nameless Buttons parented
+    -- directly to Minimap, so name/parent/child checks all miss them.
+    -- Detect by inspecting region textures: quest helper pins use textures
+    -- shipped from their own AddOn folder (e.g. "Interface\\AddOns\\pfQuest\\...",
+    -- "Interface\\AddOns\\Questie\\..."). This is a non-destructive read-only
+    -- check that runs once per button during the skin scan.
+    if button.GetNumRegions then
+        for i = 1, button:GetNumRegions() do
+            local region = select(i, button:GetRegions())
+            if region and region.GetTexture then
+                local tex = region:GetTexture()
+                if type(tex) == "string" then
+                    local lower = tex:lower()
+                    if lower:find("pfquest", 1, true)
+                       or lower:find("pfmap", 1, true)
+                       or lower:find("pfminimap", 1, true)
+                       or lower:find("questie", 1, true) then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+
     return button.miniMapIcon or button.miniMapIconData or button.pfQuest or button.pfquest
 end
 
