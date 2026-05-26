@@ -759,6 +759,13 @@ end
 -- ============================================================================
 
 local function SetupBonusBarVehicle()
+    -- Mainbars owns the page driver so bonus/stance bars keep working even
+    -- when vehicle module is disabled.
+    if addon.SetupMainBarPageDriver then
+        addon.SetupMainBarPageDriver(pUiMainBar or addon.pUiMainBar or _G.pUiMainBar)
+        return
+    end
+
     if not pUiMainBar then return end
 
     for i = 1, 12 do

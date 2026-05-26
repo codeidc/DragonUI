@@ -594,6 +594,13 @@ function addon.RefreshPetbarSystem()
     -- Skip refresh during editor mode (prevents overlay from disappearing)
     if addon.EditorMode and addon.EditorMode:IsActive() then return end
 
+    if InCombatLockdown() then
+        if addon.CombatQueue then
+            addon.CombatQueue:Add("petbar_refresh_system", addon.RefreshPetbarSystem)
+        end
+        return
+    end
+
     if PetbarModule.applied then
         if not IsModuleEnabled() and addon:ShouldDeferModuleDisable("petbar", PetbarModule) then
             return
@@ -611,6 +618,13 @@ end
 -- Refresh function for size and position updates
 function addon.RefreshPetbarFrame()
     if not IsModuleEnabled() or not PetbarModule.anchor then return end
+
+    if InCombatLockdown() then
+        if addon.CombatQueue then
+            addon.CombatQueue:Add("petbar_refresh_frame", addon.RefreshPetbarFrame)
+        end
+        return
+    end
     
     -- Update frame size based on current config
     local config = GetDynamicConfig()
@@ -672,7 +686,7 @@ initFrame:SetScript("OnEvent", function(self, event, addonName)
         
     elseif event == "PLAYER_LOGIN" and self.addonLoaded then
         if IsModuleEnabled() then
-            ApplyPetbarSystem()
+            addon.RefreshPetbarSystem()
             -- Update editor frame registration after anchor is created
             UpdateEditorFrameRegistration()
         end

@@ -1,6 +1,7 @@
 local addon = select(2, ...)
 local L = addon.L
 addon._dir = "Interface\\AddOns\\DragonUI\\assets\\"
+local class = addon._class
 
 -- ============================================================================
 -- MAINBARS MODULE FOR DRAGONUI
@@ -129,6 +130,23 @@ end
 local function IsModuleEnabled()
     return addon:IsModuleEnabled("mainbars")
 end
+
+local mainBarPageByClass = {
+    DRUID = '[bonusbar:1,nostealth] 7; [bonusbar:1,stealth] 7; [bonusbar:2] 8; [bonusbar:3] 9; [bonusbar:4] 10;',
+    WARRIOR = '[bonusbar:1] 7; [bonusbar:2] 8; [bonusbar:3] 9;',
+    PRIEST = '[bonusbar:1] 7;',
+    ROGUE = '[bonusbar:1] 7; [form:3] 7;',
+    DEFAULT = '[bonusbar:5] 11; [bar:2] 2; [bar:3] 3; [bar:4] 4; [bar:5] 5; [bar:6] 6;'
+}
+
+local function GetMainBarPageCondition()
+    local condition = mainBarPageByClass.DEFAULT
+    local classCondition = mainBarPageByClass[class]
+    if classCondition then
+        condition = condition .. ' ' .. classCondition
+    end
+    return condition .. ' 1'
+end
 -- ============================================================================
 -- PET BAR FUNCTION (ALWAYS AVAILABLE)
 -- ============================================================================
@@ -231,6 +249,48 @@ local function InitializeMainbars()
 
     local pUiMainBarArt = CreateFrame('Frame', 'pUiMainBarArt', pUiMainBar);
 
+    -- Main bar page driver owner (bug #251): keep bonus/stance page switching
+    -- available even when the vehicle module is disabled.
+    local function SetupMainBarPageDriver(mainBar)
+        mainBar = mainBar or addon.pUiMainBar or _G.pUiMainBar
+        if not mainBar then return end
+
+        if InCombatLockdown() then
+            if addon.CombatQueue then
+                addon.CombatQueue:Add("mainbars_page_driver", SetupMainBarPageDriver, mainBar)
+            end
+            return
+        end
+
+        for i = 1, 12 do
+            local actionButton = _G['ActionButton' .. i]
+            if actionButton then
+                mainBar:SetFrameRef('ActionButton' .. i, actionButton)
+            end
+        end
+
+        mainBar:Execute([[
+            buttons = newtable()
+            for i = 1, 12 do
+                local button = self:GetFrameRef('ActionButton'..i)
+                if button then
+                    table.insert(buttons, button)
+                end
+            end
+        ]])
+
+        mainBar:SetAttribute('_onstate-page', [[
+            for i, button in ipairs(buttons) do
+                button:SetAttribute('actionpage', tonumber(newstate))
+            end
+        ]])
+
+        RegisterStateDriver(mainBar, 'page', GetMainBarPageCondition())
+        MainbarsModule.stateDrivers.page = { frame = mainBar, state = 'page' }
+    end
+
+    addon.SetupMainBarPageDriver = SetupMainBarPageDriver
+
     -- ACTION BAR SYSTEM
     addon.ActionBarFrames = {
         mainbar = nil,
@@ -309,6 +369,13 @@ local function InitializeMainbars()
         if not MainbarsModule.applied then
             return
         end
+
+        for _, driver in pairs(MainbarsModule.stateDrivers) do
+            if driver and driver.frame and driver.state then
+                pcall(UnregisterStateDriver, driver.frame, driver.state)
+            end
+        end
+        MainbarsModule.stateDrivers = {}
 
         -- Hide DragonUI frames
         if MainbarsModule.frames.pUiMainBar then
@@ -2089,6 +2156,7 @@ end
 
         MainMenuBarMixin:initialize()
         addon.pUiMainBar = pUiMainBar
+        SetupMainBarPageDriver(pUiMainBar)
 
         CreateActionBarFrames()
         ApplyActionBarPositions()
@@ -2455,6 +2523,9 @@ end
                 ApplyActionBarPositions()
                 PositionActionBarsToContainers()
                 StabilizeSecondaryBarLayering()
+                if addon.SetupMainBarPageDriver then
+                    addon.SetupMainBarPageDriver(addon.pUiMainBar)
+                end
             end
 
         elseif event == "PET_BAR_UPDATE" or event == "PET_BAR_UPDATE_COOLDOWN" or event == "UNIT_PET" then
