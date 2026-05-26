@@ -227,7 +227,14 @@ function UF.TargetStyle.Create(opts)
 
     local function RestoreNativePortrait()
         if UnitExists(unitToken) then
-            Portrait:SetDrawLayer("ARTWORK", 0)
+            -- Do NOT force a draw layer here. Previously this set
+            -- Portrait:SetDrawLayer("ARTWORK", 0) on every refresh, which
+            -- fought with addons that legitimately alter the portrait layer
+            -- (BigDebuffs, LoseControl, etc.). The initial DragonUI style
+            -- setup (further below) already sets the desired layer once
+            -- at frame construction. Re-applying it on every update only
+            -- created a draw-layer conflict. Keep whatever layer is current.
+            Portrait:SetDrawLayer(Portrait:GetDrawLayer())
             SetPortraitTexture(Portrait, unitToken)
             Portrait:SetTexCoord(0, 1, 0, 1)
         end
