@@ -42,6 +42,7 @@ function UF.TargetStyle.Create(opts)
     local LevelText       = opts.levelText
     local NameBackground  = opts.nameBackground
     local namePrefix      = opts.namePrefix
+    local DeadText        = opts.deadText or _G[namePrefix .. "FrameTextureFrameDeadText"]
     local defaultPos      = opts.defaultPos
 
     -- Shared texture / constant tables from uf_core
@@ -387,6 +388,13 @@ function UF.TargetStyle.Create(opts)
         end
         if NameBackground then
             ApplyNameBackgroundLayout()
+        end
+        if DeadText and HealthBar then
+            DeadText:ClearAllPoints()
+            DeadText:SetPoint("CENTER", HealthBar, "CENTER", opts.deadTextOffsetX or 0, opts.deadTextOffsetY or 0)
+            if DeadText.SetDrawLayer then
+                DeadText:SetDrawLayer("OVERLAY", 2)
+            end
         end
     end
 
@@ -869,6 +877,14 @@ function UF.TargetStyle.Create(opts)
             end
         end
 
+        if DeadText then
+            DeadText:ClearAllPoints()
+            DeadText:SetPoint("CENTER", HealthBar, "CENTER", opts.deadTextOffsetX or 0, opts.deadTextOffsetY or 0)
+            if DeadText.SetDrawLayer then
+                DeadText:SetDrawLayer("OVERLAY", 2)
+            end
+        end
+
         -- ---- Setup bar hooks ----
         SetupBarHooks()
 
@@ -1244,6 +1260,10 @@ function UF.TargetStyle.Create(opts)
         if UnitExists(unitToken) then
             if opts.forceLayoutOnUnitChange then
                 ForceReapplyLayout()
+            end
+            if DeadText and HealthBar then
+                DeadText:ClearAllPoints()
+                DeadText:SetPoint("CENTER", HealthBar, "CENTER", opts.deadTextOffsetX or 0, opts.deadTextOffsetY or 0)
             end
             UpdateNameBackground()
             UpdateClassification()
