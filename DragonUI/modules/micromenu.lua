@@ -2595,7 +2595,47 @@ end
         MiniMapLFGFrame.eye.texture:SetTexture(addon._dir .. 'uigroupfinderflipbookeye.tga')
     end
 
+    -- Harden the random dungeon cooldown event path.
+    -- In 3.3.5a, UNIT_AURA can occasionally reach this handler without a
+    -- unit token, which prevents proper cooldown refresh until /reload.
+    -- Apply a small guard and preserve the existing active OnEvent script.
+    local function InstallLFDRandomCooldownFix()
+        if MicromenuModule.hooks.lfdRandomCooldownFix then
+            return
+        end
+        if type(LFDQueueFrameRandomCooldownFrame_OnEvent) ~= "function" then
+            return
+        end
+        if not LFDQueueFrameCooldownFrame then
+            return
+        end
+
+        local originalFunc = LFDQueueFrameRandomCooldownFrame_OnEvent
+        local originalScript = LFDQueueFrameCooldownFrame:GetScript("OnEvent")
+
+        LFDQueueFrameRandomCooldownFrame_OnEvent = function(self, event, unit, ...)
+            if event == "UNIT_AURA" and not unit then
+                return
+            end
+            return originalFunc(self, event, unit, ...)
+        end
+
+        if originalScript == originalFunc then
+            LFDQueueFrameCooldownFrame:SetScript("OnEvent", LFDQueueFrameRandomCooldownFrame_OnEvent)
+        elseif type(originalScript) == "function" then
+            LFDQueueFrameCooldownFrame:SetScript("OnEvent", function(self, event, unit, ...)
+                if event == "UNIT_AURA" and not unit then
+                    return
+                end
+                return originalScript(self, event, unit, ...)
+            end)
+        end
+
+        MicromenuModule.hooks.lfdRandomCooldownFix = true
+    end
+
     ApplyLFGFrameStyle()
+    InstallLFDRandomCooldownFix()
 
     MiniMapLFGFrame:SetScript('OnClick', function(self, button)
         local mode, submode = GetLFGMode();
@@ -2621,6 +2661,9 @@ end
             ToggleLFDParentFrame();
             if LFDParentFrame and LFDParentFrame:IsShown() and LFDParentFrame_Update then
                 LFDParentFrame_Update()
+            end
+            if LFDQueueFrameRandom_UpdateFrame then
+                pcall(LFDQueueFrameRandom_UpdateFrame)
             end
         elseif (mode == "listed") then
             ToggleLFRParentFrame();
