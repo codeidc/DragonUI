@@ -66,6 +66,36 @@ local WHITE_LIST = {'MiniMapBattlefieldFrame', 'MiniMapTrackingButton', 'MiniMap
                     -- Quest helper POI icons (quest markers inside the minimap)
                     'QuestieFrame', 'Questie_MiniMapNote', 'pfQuest', 'pfquest', 'pfMap', 'pfMinimap'}
 
+-- Keep launcher buttons skinnable while still excluding internal quest pins.
+-- Questie launcher is LibDBIcon-based (LibDBIcon10_Questie), while pfQuest
+-- uses a named minimap button (pfQuestIcon).
+local QUEST_ADDON_LAUNCHER_BUTTONS = {
+    ["pfQuestIcon"] = true,
+    ["LibDBIcon10_Questie"] = true,
+}
+
+local function IsQuestAddonLauncherButton(button)
+    if not button or not button.GetName then
+        return false
+    end
+
+    local frameName = button:GetName()
+    if not frameName then
+        return false
+    end
+
+    if QUEST_ADDON_LAUNCHER_BUTTONS[frameName] then
+        return true
+    end
+
+    -- Defensive future-proofing for Questie forks that keep the same LibDBIcon prefix.
+    if frameName:find("LibDBIcon10_Questie", 1, true) == 1 then
+        return true
+    end
+
+    return false
+end
+
 local function IsFrameWhitelisted(frameName)
     if not frameName then
         return false
@@ -83,6 +113,12 @@ end
 
 local function IsQuestMinimapPin(button)
     if not button then
+        return false
+    end
+
+    -- Do not classify the actual addon launcher icon as an internal quest pin.
+    -- This lets DragonUI skin the launcher button while still skipping map pins.
+    if IsQuestAddonLauncherButton(button) then
         return false
     end
 
