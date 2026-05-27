@@ -149,6 +149,29 @@ local function GetMainBarPageCondition()
     end
     return condition .. ' 1'
 end
+
+-- Main bar pages are driven through ActionButton actionpage attributes.
+-- Keep BonusAction buttons click-through so they never steal mouse clicks
+-- when form/stance bars toggle visibility.
+local function EnsureBonusButtonsClickThrough()
+    if InCombatLockdown() then
+        if addon.CombatQueue then
+            addon.CombatQueue:Add("mainbars_bonus_buttons_clickthrough", EnsureBonusButtonsClickThrough)
+        end
+        return
+    end
+
+    if BonusActionBarFrame and BonusActionBarFrame.EnableMouse then
+        BonusActionBarFrame:EnableMouse(false)
+    end
+
+    for i = 1, NUM_ACTIONBAR_BUTTONS do
+        local button = _G["BonusActionButton" .. i]
+        if button and button.EnableMouse then
+            button:EnableMouse(false)
+        end
+    end
+end
 -- ============================================================================
 -- PET BAR FUNCTION (ALWAYS AVAILABLE)
 -- ============================================================================
@@ -628,8 +651,11 @@ end
     -- Register event to update page number when action bar page changes
     event:RegisterEvents(function()
         MainMenuBarPageNumber:SetText(GetActionBarPage());
+        EnsureBonusButtonsClickThrough()
     end,
-        'ACTIONBAR_PAGE_CHANGED'
+        'ACTIONBAR_PAGE_CHANGED',
+        'UPDATE_BONUS_ACTIONBAR',
+        'UPDATE_SHAPESHIFT_FORM'
     );
 
     -- Helper: position buttons for a left/right bar using chain anchoring.
@@ -2178,6 +2204,7 @@ end
         MainMenuBarMixin:initialize()
         addon.pUiMainBar = pUiMainBar
         SetupMainBarPageDriver(pUiMainBar)
+        EnsureBonusButtonsClickThrough()
 
         CreateActionBarFrames()
         ApplyActionBarPositions()
@@ -3472,6 +3499,7 @@ function addon.ApplyAllBarButtonCounts()
         nil, addon.pUiMainBar,
         mainRows, mainColumns, mainCount,
         nil, nil, btnSpacing)
+    EnsureBonusButtonsClickThrough()
 
     -- Show/hide ThreeSlice dividers between buttons
     -- Only show dividers in single-row mode (multi-row would look odd)
