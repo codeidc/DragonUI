@@ -118,6 +118,9 @@ L["DragonUI"] = "DragonUI"
 -- ============================================================================
 
 L["DragonUI: Minimap module restored to Blizzard defaults"] = "DragonUI：小地图模块已恢复为暴雪默认设置"
+L["Minimap Buttons"] = "小地图按钮"
+L["Left-click to show or hide minimap addon buttons."] = "左键显示或隐藏小地图插件按钮。"
+L["Right-click to open DragonUI settings."] = "右键打开 DragonUI 设置。"
 
 -- ============================================================================
 -- 编辑模式标签

@@ -414,6 +414,7 @@ local defaults = {
             zonetext_font_size = 12,
             mail_icon_x = -4,
             mail_icon_y = -5,
+            settings_button_angle = 315,
             addon_button_skin = true,
             addon_button_fade = false
         },

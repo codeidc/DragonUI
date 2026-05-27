@@ -121,6 +121,9 @@ L["DragonUI"] = true
 -- ============================================================================
 
 L["DragonUI: Minimap module restored to Blizzard defaults"] = true
+L["Minimap Buttons"] = true
+L["Left-click to show or hide minimap addon buttons."] = true
+L["Right-click to open DragonUI settings."] = true
 
 -- ============================================================================
 -- EDITOR MODE LABELS (displayed on mover overlays)
