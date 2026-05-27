@@ -2616,91 +2616,42 @@ end
 
     -- LFG Frame customization
     local function ApplyLFGFrameStyle()
-        MiniMapLFGFrame:SetClearPoint('LEFT', _G.CharacterMicroButton, -32, 2)
-        MiniMapLFGFrame:SetScale(1.5)
+        MiniMapLFGFrameIcon:SetScale(1.5)
         MiniMapLFGFrameBorder:SetTexture(nil)
         MiniMapLFGFrame.eye.texture:SetTexture(addon._dir .. 'uigroupfinderflipbookeye.tga')
     end
 
-    -- Harden the random dungeon cooldown event path.
-    -- In 3.3.5a, UNIT_AURA can occasionally reach this handler without a
-    -- unit token, which prevents proper cooldown refresh until /reload.
-    -- Apply a small guard and preserve the existing active OnEvent script.
-    local function InstallLFDRandomCooldownFix()
-        if MicromenuModule.hooks.lfdRandomCooldownFix then
-            return
-        end
-        if type(LFDQueueFrameRandomCooldownFrame_OnEvent) ~= "function" then
-            return
-        end
-        if not LFDQueueFrameCooldownFrame then
-            return
-        end
-
-        local originalFunc = LFDQueueFrameRandomCooldownFrame_OnEvent
-        local originalScript = LFDQueueFrameCooldownFrame:GetScript("OnEvent")
-
-        LFDQueueFrameRandomCooldownFrame_OnEvent = function(self, event, unit, ...)
-            if event == "UNIT_AURA" and not unit then
-                return
-            end
-            return originalFunc(self, event, unit, ...)
-        end
-
-        if originalScript == originalFunc then
-            LFDQueueFrameCooldownFrame:SetScript("OnEvent", LFDQueueFrameRandomCooldownFrame_OnEvent)
-        elseif type(originalScript) == "function" then
-            LFDQueueFrameCooldownFrame:SetScript("OnEvent", function(self, event, unit, ...)
-                if event == "UNIT_AURA" and not unit then
-                    return
-                end
-                return originalScript(self, event, unit, ...)
-            end)
-        end
-
-        MicromenuModule.hooks.lfdRandomCooldownFix = true
-    end
-
     ApplyLFGFrameStyle()
-    InstallLFDRandomCooldownFix()
 
     MiniMapLFGFrame:SetScript('OnClick', function(self, button)
         local mode, submode = GetLFGMode();
-        if (button == "RightButton" or mode == "lfgparty") then
+        if (button == "RightButton" or mode == "lfgparty" or mode == "abandonedInDungeon") then
             PlaySound("igMainMenuOpen");
             local yOffset;
             if (mode == "queued") then
                 MiniMapLFGFrameDropDown.point = "BOTTOMRIGHT";
                 MiniMapLFGFrameDropDown.relativePoint = "TOPLEFT";
-                yOffset = 105;
+                yOffset = 0;
             else
                 MiniMapLFGFrameDropDown.point = nil;
                 MiniMapLFGFrameDropDown.relativePoint = nil;
-                yOffset = 110;
+                yOffset = 30;
             end
-            ToggleDropDownMenu(1, nil, MiniMapLFGFrameDropDown, "MiniMapLFGFrame", -60, yOffset);
+            ToggleDropDownMenu(1, nil, MiniMapLFGFrameDropDown, "MiniMapLFGFrame", 0, yOffset);
         elseif (mode == "proposal") then
             if (not LFDDungeonReadyPopup:IsShown()) then
                 PlaySound("igCharacterInfoTab");
                 StaticPopupSpecial_Show(LFDDungeonReadyPopup);
             end
-        elseif (mode == "abandonedInDungeon" or mode == "queued" or mode == "rolecheck") then
+        elseif (mode == "queued" or mode == "rolecheck") then
             ToggleLFDParentFrame();
-            if LFDParentFrame and LFDParentFrame:IsShown() and LFDParentFrame_Update then
-                LFDParentFrame_Update()
-            end
-            if LFDQueueFrameRandom_UpdateFrame then
-                pcall(LFDQueueFrameRandom_UpdateFrame)
-            end
         elseif (mode == "listed") then
             ToggleLFRParentFrame();
         end
     end)
 
-    LFDSearchStatus:SetParent(MinimapBackdrop)
-    LFDSearchStatus:SetClearPoint('TOPRIGHT', MinimapBackdrop, 'TOPLEFT')
-
-    -- LFD Status reanchor
+    -- Keep Blizzard's LFD status text/layout ownership intact. We only
+    -- re-anchor around the eye and avoid reparenting to prevent text regressions.
     local function ReanchorLFDStatus()
         if not LFDSearchStatus or not MiniMapLFGFrame then
             return
