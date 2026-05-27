@@ -526,12 +526,6 @@ function addon.ApplyAuraCooldownTextSystem()
 
     if AuraCooldownsModule.applied then
         ScanAllAuraCooldowns()
-        if TargetFrame and TargetFrame_UpdateAuras then
-            pcall(TargetFrame_UpdateAuras, TargetFrame)
-        end
-        if FocusFrame and TargetFrame_UpdateAuras then
-            pcall(TargetFrame_UpdateAuras, FocusFrame)
-        end
         return
     end
 
@@ -541,13 +535,6 @@ function addon.ApplyAuraCooldownTextSystem()
     AuraCooldownsModule.applied = true
 
     ScanAllAuraCooldowns()
-
-    if TargetFrame and TargetFrame_UpdateAuras then
-        pcall(TargetFrame_UpdateAuras, TargetFrame)
-    end
-    if FocusFrame and TargetFrame_UpdateAuras then
-        pcall(TargetFrame_UpdateAuras, FocusFrame)
-    end
 end
 
 function addon.RestoreAuraCooldownTextSystem()
@@ -574,13 +561,6 @@ function addon.RestoreAuraCooldownTextSystem()
     end
 
     AuraCooldownsModule.registeredEvents = {}
-
-    if TargetFrame and TargetFrame_UpdateAuras then
-        pcall(TargetFrame_UpdateAuras, TargetFrame)
-    end
-    if FocusFrame and TargetFrame_UpdateAuras then
-        pcall(TargetFrame_UpdateAuras, FocusFrame)
-    end
 
     AuraCooldownsModule.applied = false
 end

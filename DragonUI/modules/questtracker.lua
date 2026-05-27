@@ -223,17 +223,15 @@ local function ForceUpdateQuestTracker()
     if WatchFrame then
         WatchFrame:SetHeight(QUESTTRACKER_MAX_HEIGHT)
     end
-    
-    -- Trigger Blizzard's native quest tracker update
-    -- Our WatchFrame_Update hook handles re-assertion and styling
-    if WatchFrame_Update then
-        pcall(WatchFrame_Update, WatchFrame)
+
+    -- Never call WatchFrame_Update directly from addon code: that taints
+    -- WatchFrame globals and can later trigger blocked actions in combat.
+    if WatchFrame and WatchFrameLines and WatchFrameHeader then
+        WatchFrameLines:SetPoint("TOPLEFT", WatchFrameHeader, 'BOTTOMLEFT', 0, -15)
     end
-    
-    -- Fallback styling if hooks not yet installed
-    if not hooksInstalled then
-        pcall(ApplyQuestTrackerStyling)
-    end
+
+    ApplyQuestTrackerFonts()
+    pcall(ApplyQuestTrackerStyling)
     
     updateInProgress = false
 end
