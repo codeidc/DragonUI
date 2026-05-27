@@ -371,26 +371,26 @@ local function stancebutton_updatestate()
 		icon = _G['ShapeshiftButton'..index..'Icon']
 		if index <= numForms then
 			texture, name, isActive, isCastable = GetShapeshiftFormInfo(index)
-			icon:SetTexture(texture)
+            icon:SetTexture(texture)
 			cooldown = _G['ShapeshiftButton'..index..'Cooldown']
-			if texture then
-				cooldown:SetAlpha(1)
-			else
-				cooldown:SetAlpha(0)
+            if texture then
+                cooldown:SetAlpha(1)
+            else
+                cooldown:SetAlpha(0)
 			end
 			start, duration, enable = GetShapeshiftFormCooldown(index)
-			CooldownFrame_SetTimer(cooldown, start, duration, enable)
-			if isActive then
-				ShapeshiftBarFrame.lastSelected = button:GetID()
-				button:SetChecked(1)
-			else
-				button:SetChecked(0)
+            CooldownFrame_SetTimer(cooldown, start, duration, enable)
+            if isActive then
+                ShapeshiftBarFrame.lastSelected = button:GetID()
+                button:SetChecked(1)
+            else
+                button:SetChecked(0)
 			end
-			if isCastable then
-				icon:SetVertexColor(255/255, 255/255, 255/255)
-			else
-				icon:SetVertexColor(102/255, 102/255, 102/255)
-			end
+            if isCastable then
+                icon:SetVertexColor(255/255, 255/255, 255/255)
+            else
+                icon:SetVertexColor(102/255, 102/255, 102/255)
+            end
 		end
 	end
 end
@@ -428,10 +428,11 @@ end
 local function OnEvent(self,event,...)
     if not IsModuleEnabled() then return end
     
-	if GetNumShapeshiftForms() < 1 then return; end
 	if event == 'PLAYER_LOGIN' then
 		stancebutton_position();
-	elseif event == 'UPDATE_SHAPESHIFT_FORMS' then
+    elseif event == 'UPDATE_SHAPESHIFT_FORMS'
+        or event == 'ACTIVE_TALENT_GROUP_CHANGED'
+        or event == 'CHARACTER_POINTS_CHANGED' then
 		stancebutton_setup();
 	elseif event == 'PLAYER_ENTERING_WORLD' then
 		self:UnregisterEvent('PLAYER_ENTERING_WORLD');
@@ -488,6 +489,8 @@ local function ApplyStanceSystem()
         'UPDATE_SHAPESHIFT_COOLDOWN', -- Cooldown changes
         'SPELL_UPDATE_USABLE',        -- General spell usability changes (zone transitions)
         'ACTIONBAR_UPDATE_USABLE',    -- Action bar usability updates
+        'CHARACTER_POINTS_CHANGED',   -- Talent point changes can add/remove forms.
+        'ACTIVE_TALENT_GROUP_CHANGED',-- Dual spec swap can add/remove forms.
     }
     
     for _, eventName in ipairs(events) do
