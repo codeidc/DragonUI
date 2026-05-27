@@ -791,6 +791,19 @@ local function RestoreMicromenuSystem()
                     button.DragonUIBackgroundPushed:Hide()
                     button.DragonUIBackgroundPushed = nil
                 end
+                if button.DragonUICharHighlight then
+                    button.DragonUICharHighlight:Hide()
+                    button.DragonUICharHighlight = nil
+                end
+                if button.DragonUIPVPIcon then
+                    button.DragonUIPVPIcon:Hide()
+                    button.DragonUIPVPIcon = nil
+                end
+
+                if button == _G.CharacterMicroButton and MicroButtonPortrait then
+                    MicroButtonPortrait:Show()
+                    MicroButtonPortrait:SetAlpha(1)
+                end
 
                 button.dragonUIState = nil
                 button.dragonUITimer = nil
