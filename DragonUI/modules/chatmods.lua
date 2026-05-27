@@ -157,8 +157,14 @@ end
 
 local function ApplyTabAlphaGlobals(config)
     local tabIdleAlpha = (config and config.tabIdleAlpha ~= nil) and config.tabIdleAlpha or 0
-    _G.CHAT_FRAME_TAB_NORMAL_NOMOUSE_ALPHA = tabIdleAlpha
-    _G.CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA = tabIdleAlpha
+    ChatModsModule.frames.tabIdleAlpha = tabIdleAlpha
+
+    for i = 1, CHAT_FRAME_LIMIT do
+        local tab = _G["ChatFrame" .. i .. "Tab"]
+        if tab then
+            tab.noMouseAlpha = tabIdleAlpha
+        end
+    end
 end
 
     local function GetTabIdleAlpha(config)
@@ -197,11 +203,20 @@ end
         for i = 1, CHAT_FRAME_LIMIT do
             local cf = _G["ChatFrame" .. i]
             local tab = _G["ChatFrame" .. i .. "Tab"]
+            local bf = _G["ChatFrame" .. i .. "ButtonFrame"]
             local eb = _G["ChatFrame" .. i .. "EditBox"]
 
             local tabAlpha = tabIdleAlpha
             if tab then
                 tab.noMouseAlpha = tabIdleAlpha
+                local hovered = (tab and tab:IsMouseOver())
+                    or (cf and cf:IsMouseOver())
+                    or (bf and bf:IsMouseOver())
+                    or (eb and (eb:IsMouseOver() or eb:HasFocus()))
+                local targetTabAlpha = hovered and 1 or tabIdleAlpha
+                if IsAlphaChanged(tab:GetAlpha(), targetTabAlpha) then
+                    tab:SetAlpha(targetTabAlpha)
+                end
                 tabAlpha = tab:GetAlpha() or tabIdleAlpha
             end
 
@@ -1116,6 +1131,7 @@ local function ApplyChatModsSystem()
     end
 
     ChatModsModule.applied = true
+    RefreshChatFadeState()
     StartChatButtonsHoverUpdater(true)
 end
 
@@ -1160,8 +1176,18 @@ local function RestoreChatModsSystem()
     end
 
     if ChatModsModule.originalStates.tabAlphaGlobals then
-        _G.CHAT_FRAME_TAB_NORMAL_NOMOUSE_ALPHA = ChatModsModule.originalStates.tabAlphaGlobals.normal
-        _G.CHAT_FRAME_TAB_SELECTED_NOMOUSE_ALPHA = ChatModsModule.originalStates.tabAlphaGlobals.selected
+        local normalAlpha = ChatModsModule.originalStates.tabAlphaGlobals.normal
+        local selectedAlpha = ChatModsModule.originalStates.tabAlphaGlobals.selected or normalAlpha
+        local selectedIndex = (_G.SELECTED_CHAT_FRAME and _G.SELECTED_CHAT_FRAME.GetID and _G.SELECTED_CHAT_FRAME:GetID())
+
+        for i = 1, CHAT_FRAME_LIMIT do
+            local tab = _G["ChatFrame" .. i .. "Tab"]
+            if tab then
+                tab.noMouseAlpha = (selectedIndex == i) and selectedAlpha or normalAlpha
+            end
+        end
+
+        ChatModsModule.frames.tabIdleAlpha = nil
         ChatModsModule.originalStates.tabAlphaGlobals = nil
     end
 
