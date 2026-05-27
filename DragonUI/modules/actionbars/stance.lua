@@ -381,7 +381,6 @@ local function stancebutton_updatestate()
 			start, duration, enable = GetShapeshiftFormCooldown(index)
             CooldownFrame_SetTimer(cooldown, start, duration, enable)
             if isActive then
-                ShapeshiftBarFrame.lastSelected = button:GetID()
                 button:SetChecked(1)
             else
                 button:SetChecked(0)
