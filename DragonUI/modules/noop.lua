@@ -37,9 +37,6 @@ local function ApplyNoopChangesImpl()
     MainMenuBar:EnableMouse(false)
     PetActionBarFrame:EnableMouse(false)
     ShapeshiftBarFrame:EnableMouse(false)
-    PossessBarFrame:EnableMouse(false)
-    BonusActionBarFrame:EnableMouse(false)
-    BonusActionBarFrame:SetScale(0.001)
     
     -- Kill ExhaustionTick OnUpdate to prevent Blizzard nil crashes
     -- (GetXPExhaustion() returns nil for non-rested players, Blizzard code doesn't check)
@@ -71,13 +68,10 @@ local function ApplyNoopChangesImpl()
     local elements = {
         MainMenuBar,
         MainMenuBarArtFrame,
-        BonusActionBarFrame,
         MainMenuBarOverlayFrame,
         -- VehicleMenuBar,  -- RetailUI pattern: handled separately below (keep events alive)
         -- VehicleMenuBarArtFrame,
-        -- PossessBarFrame,
-        PossessBackground1,
-        PossessBackground2,
+        -- Possess/Bonus bars are protected; do not mutate them here.
         PetActionBarFrame,
         ShapeshiftBarFrame,
         ShapeshiftBarLeft,
@@ -123,7 +117,6 @@ local function ApplyNoopChangesImpl()
         'MultiBarBottomLeft',
         'MultiBarBottomRight',
         'ShapeshiftBarFrame',
-        'PossessBarFrame',
         'PETACTIONBAR_YPOS',
         'MultiCastActionBarFrame',
         'MULTICASTACTIONBAR_YPOS',
