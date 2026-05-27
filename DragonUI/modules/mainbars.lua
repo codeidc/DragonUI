@@ -21,7 +21,9 @@ local MainbarsModule = {
     originalPositions = {},
     originalTextures = {},
     originalVisibility = {},
-    actionBarFrames = nil
+    actionBarFrames = nil,
+    pageDriverInstalled = false,
+    pageDriverFrame = nil
 }
 addon.MainbarsModule = MainbarsModule  -- Expose globally for external access
 
@@ -262,6 +264,21 @@ local function InitializeMainbars()
             return
         end
 
+        -- Init-once behavior: keep the page driver
+        -- stable and avoid repeated RegisterStateDriver churn.
+        if MainbarsModule.pageDriverInstalled and MainbarsModule.pageDriverFrame == mainBar then
+            return
+        end
+
+        -- If the driver was previously attached to a different frame, detach it
+        -- before reattaching. This path is rare but keeps ownership explicit.
+        if MainbarsModule.pageDriverInstalled and MainbarsModule.pageDriverFrame and MainbarsModule.pageDriverFrame ~= mainBar then
+            pcall(UnregisterStateDriver, MainbarsModule.pageDriverFrame, 'page')
+            MainbarsModule.pageDriverInstalled = false
+            MainbarsModule.pageDriverFrame = nil
+            MainbarsModule.stateDrivers.page = nil
+        end
+
         for i = 1, 12 do
             local actionButton = _G['ActionButton' .. i]
             if actionButton then
@@ -287,6 +304,8 @@ local function InitializeMainbars()
 
         RegisterStateDriver(mainBar, 'page', GetMainBarPageCondition())
         MainbarsModule.stateDrivers.page = { frame = mainBar, state = 'page' }
+        MainbarsModule.pageDriverInstalled = true
+        MainbarsModule.pageDriverFrame = mainBar
     end
 
     addon.SetupMainBarPageDriver = SetupMainBarPageDriver
@@ -376,6 +395,8 @@ local function InitializeMainbars()
             end
         end
         MainbarsModule.stateDrivers = {}
+        MainbarsModule.pageDriverInstalled = false
+        MainbarsModule.pageDriverFrame = nil
 
         -- Hide DragonUI frames
         if MainbarsModule.frames.pUiMainBar then
