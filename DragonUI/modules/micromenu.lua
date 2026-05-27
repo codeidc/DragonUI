@@ -503,6 +503,12 @@ end
 -- Additional utility helpers are defined below (frame cleanup,
 -- button setup, and style/state synchronization).
 local function UpdateCharacterPortraitVisibility()
+    -- Global hooks may still fire after module disable; bail out unless
+    -- micromenu is currently applied to preserve vanilla Character button visuals.
+    if not MicromenuModule.applied or not IsModuleEnabled() then
+        return
+    end
+
     if MicroButtonPortrait then
         if addon and addon.db and addon.db.profile and addon.db.profile.micromenu and
             addon.db.profile.micromenu.grayscale_icons then
@@ -1355,6 +1361,10 @@ local function ApplyMicromenuSystem()
         -- SetPushed/SetNormal don't darken the portrait.
         if not charPushHooksRegistered then
             hooksecurefunc('CharacterMicroButton_SetPushed', function()
+                if not MicromenuModule.applied or not IsModuleEnabled() then
+                    return
+                end
+
                 local isGS = addon and addon.db and addon.db.profile
                     and addon.db.profile.micromenu and addon.db.profile.micromenu.grayscale_icons
                 if isGS then return end
@@ -1369,6 +1379,10 @@ local function ApplyMicromenuSystem()
                 end
             end)
             hooksecurefunc('CharacterMicroButton_SetNormal', function()
+                if not MicromenuModule.applied or not IsModuleEnabled() then
+                    return
+                end
+
                 local isGS = addon and addon.db and addon.db.profile
                     and addon.db.profile.micromenu and addon.db.profile.micromenu.grayscale_icons
                 if isGS then return end
