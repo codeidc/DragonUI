@@ -69,6 +69,7 @@ function UF.SmallFrame.Create(opts)
     }
 
     local pendingWidgetPositionUpdate = false
+    local pendingVisibilityUpdate = false
 
 
     -- ========================================================================
@@ -679,11 +680,39 @@ function UF.SmallFrame.Create(opts)
     local function RequestVisibilityRefresh()
         Module.pendingVisibilityRefresh = true
 
-        if addon and addon.CombatQueue then
-            addon.CombatQueue:Add(opts.configKey .. "_visibility_refresh", function()
-                ReconcileVisibility()
-            end)
+        if InCombatLockdown() then
+            if addon and addon.CombatQueue then
+                addon.CombatQueue:Add(opts.configKey .. "_visibility_refresh", function()
+                    ReconcileVisibility()
+                end)
+            end
+            return
         end
+
+        if pendingVisibilityUpdate then
+            return
+        end
+
+        pendingVisibilityUpdate = true
+
+        if not Module.visibilityUpdateFrame then
+            Module.visibilityUpdateFrame = CreateFrame("Frame")
+        end
+
+        Module.visibilityUpdateFrame:SetScript("OnUpdate", function(self)
+            self:SetScript("OnUpdate", nil)
+            pendingVisibilityUpdate = false
+
+            if Module.pendingVisibilityRefresh then
+                ReconcileVisibility()
+            end
+        end)
+    end
+
+    local function RequestVisibilityRefreshFromEvent()
+        -- Defer one frame to avoid mutating protected unit frame visibility
+        -- directly from Blizzard unit update event call stacks.
+        RequestVisibilityRefresh()
     end
 
     local function OnEvent(self, event, ...)
@@ -722,7 +751,7 @@ function UF.SmallFrame.Create(opts)
             end
 
             -- Ensure visibility after entering world
-            ReconcileVisibility()
+            RequestVisibilityRefreshFromEvent()
 
         -- ----------------------------------------------------------------
         -- Unit event (target/focus changed)
@@ -730,12 +759,7 @@ function UF.SmallFrame.Create(opts)
         elseif event == opts.unitEvent then
             if not IsEnabled() then return end
 
-            if InCombatLockdown() then
-                RequestVisibilityRefresh()
-                return
-            end
-
-            ReconcileVisibility()
+            RequestVisibilityRefreshFromEvent()
 
         -- ----------------------------------------------------------------
         -- UNIT_TARGET
@@ -753,23 +777,18 @@ function UF.SmallFrame.Create(opts)
             end
 
             if shouldHandle then
-                if InCombatLockdown() then
-                    RequestVisibilityRefresh()
-                    return
-                end
-
-                ReconcileVisibility()
+                RequestVisibilityRefreshFromEvent()
             end
 
         elseif event == "PLAYER_REGEN_ENABLED" then
             if Module.pendingVisibilityRefresh then
-                ReconcileVisibility()
+                RequestVisibilityRefresh()
             end
 
         elseif event == "CVAR_UPDATE" then
             local cvarName = ...
             if opts.cvar and cvarName == opts.cvar then
-                ReconcileVisibility()
+                RequestVisibilityRefreshFromEvent()
             end
 
         -- ----------------------------------------------------------------

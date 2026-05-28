@@ -326,8 +326,6 @@ local function petbutton_position()
         end
     end
     
-    PetActionBarFrame.showgrid = 1
-    
     -- Register state driver for pet visibility (skip during editor mode to keep petbar visible)
     if not (addon.EditorMode and addon.EditorMode:IsActive()) then
         RegisterStateDriver(petbar, 'visibility', '[pet,novehicleui,nobonusbar:5] show; hide')
