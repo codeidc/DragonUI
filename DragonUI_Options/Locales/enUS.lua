@@ -702,6 +702,10 @@ L["Y offset when XP bar is not shown"] = true
 -- MINIMAP TAB
 -- ============================================================================
 
+L["Collector"] = true
+L["Minimap Buttons Collector"] = true
+L["Circle"] = true
+L["Arrow"] = true
 L["Basic Settings"] = true
 L["Border Alpha"] = true
 L["Top border alpha (0 to hide)."] = true

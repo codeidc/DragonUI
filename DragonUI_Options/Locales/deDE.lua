@@ -681,6 +681,10 @@ L["Y offset when XP bar is not shown"] = "Y-Versatz, wenn die EP-Leiste nicht an
 -- MINIMAP TAB
 -- ============================================================================
 
+L["Collector"] = "Sammler"
+L["Minimap Buttons Collector"] = "Minikarten-Schaltflächen-Sammler"
+L["Circle"] = "Kreis"
+L["Arrow"] = "Pfeil"
 L["Basic Settings"] = "Grundeinstellungen"
 L["Border Alpha"] = "Rahmen-Alpha"
 L["Top border alpha (0 to hide)."] = "Alpha der oberen Leiste (0 zum Ausblenden)."

@@ -44,6 +44,13 @@ L["Totem Recall Button"] = true
 
 L["Copy Text"] = "Copier le texte"
 
+-- Minimap tooltip strings
+L["Minimap Buttons"] = "Boutons de minicarte"
+L["Minimap Buttons Collector"] = "Boutons de minicarte"
+L["Left-click to show or hide minimap addon buttons."] = "Clic gauche pour ouvrir les boutons d'addon de la minicarte."
+L["Right-click to open DragonUI settings."] = "Clic droit pour ouvrir les parametres de DragonUI."
+L["Drag to move"] = "Glisser pour deplacer"
+
 -- Editor mode labels
 L["TargetCastbar"] = "Barre d'incantation de la cible"
 L["FocusCastbar"] = "Barre d'incantation du focus"

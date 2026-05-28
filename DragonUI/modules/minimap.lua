@@ -60,7 +60,7 @@ local ADDON_ORBIT_RADIUS = 15
 local DRAGONUI_SETTINGS_BUTTON_SIZE = 21
 local DRAGONUI_SETTINGS_BUTTON_ICON = "Interface\\Icons\\INV_Misc_Head_Dragon_01"
 local DRAGONUI_SETTINGS_BUTTON_ICON_FALLBACK = "Interface\\Icons\\Ability_Mount_RedDragonhawk"
-local KeepExternalMinimapButtonHidden
+local DRAGONUI_CLASSIC_COLLECTOR_ICON = "Interface\\AddOns\\DragonUI\\assets\\dfrl_collector_toggle.tga"
 
 -- Addon icon whitelist: define before ReplaceBlizzardFrame
 local WHITE_LIST = {'MiniMapBattlefieldFrame', 'MiniMapTrackingButton', 'MiniMapMailFrame', 'HelpOpenTicketButton',
@@ -120,6 +120,12 @@ local function IsQuestMinimapPin(button)
         return false
     end
 
+    -- Cache positive detections: quest pins are stable frame objects and this
+    -- avoids repeated texture/region scans on frequent minimap button rescans.
+    if button.DragonUI_IsQuestPin then
+        return true
+    end
+
     -- Do not classify the actual addon launcher icon as an internal quest pin.
     -- This lets DragonUI skin the launcher button while still skipping map pins.
     if IsQuestAddonLauncherButton(button) then
@@ -128,20 +134,24 @@ local function IsQuestMinimapPin(button)
 
     local frameName = button:GetName()
     if IsFrameWhitelisted(frameName) then
+        button.DragonUI_IsQuestPin = true
         return true
     end
 
     local parent = button:GetParent()
     local parentName = parent and parent.GetName and parent:GetName()
     if IsFrameWhitelisted(parentName) then
+        button.DragonUI_IsQuestPin = true
         return true
     end
 
     if button.GetNumChildren then
-        for i = 1, button:GetNumChildren() do
-            local child = select(i, button:GetChildren())
+        local children = { button:GetChildren() }
+        for i = 1, #children do
+            local child = children[i]
             local childName = child and child.GetName and child:GetName()
             if IsFrameWhitelisted(childName) then
+                button.DragonUI_IsQuestPin = true
                 return true
             end
         end
@@ -164,6 +174,7 @@ local function IsQuestMinimapPin(button)
                        or lower:find("pfmap", 1, true)
                        or lower:find("pfminimap", 1, true)
                        or lower:find("questie", 1, true) then
+                        button.DragonUI_IsQuestPin = true
                         return true
                     end
                 end
@@ -171,7 +182,13 @@ local function IsQuestMinimapPin(button)
         end
     end
 
-    return button.miniMapIcon or button.miniMapIconData or button.pfQuest or button.pfquest
+    local isQuestPin = button.miniMapIcon or button.miniMapIconData or button.pfQuest or button.pfquest
+    if isQuestPin then
+        button.DragonUI_IsQuestPin = true
+        return true
+    end
+
+    return false
 end
 
 -- Verify atlas function availability at startup
@@ -203,6 +220,10 @@ local function UpdateMinimapCircleSize()
     end
 end
 
+local function IsSexyMapHybridModeValue(mode)
+    return mode == "hybrid" or mode == "hybrid_v2"
+end
+
 local function UpdateMinimapMaskForRotation()
     if not Minimap then return end
 
@@ -210,7 +231,7 @@ local function UpdateMinimapMaskForRotation()
         or MinimapModule._allowExternalMask
         or (addon.db and addon.db.profile and addon.db.profile.modules
             and addon.db.profile.modules.minimap
-            and addon.db.profile.modules.minimap.sexymap_mode == "hybrid")
+            and IsSexyMapHybridModeValue(addon.db.profile.modules.minimap.sexymap_mode))
 
     -- In hybrid mode, SexyMap owns the minimap shape/mask.
     if isHybridMode then
@@ -229,7 +250,7 @@ local function IsHybridMinimapModeActive()
         or MinimapModule._allowExternalMask
         or (addon.db and addon.db.profile and addon.db.profile.modules
             and addon.db.profile.modules.minimap
-            and addon.db.profile.modules.minimap.sexymap_mode == "hybrid")
+            and IsSexyMapHybridModeValue(addon.db.profile.modules.minimap.sexymap_mode))
 end
 
 local function GetStoredRotatePreference()
@@ -497,7 +518,7 @@ local function ReplaceBlizzardFrame(frame)
     local isHybridMode = MinimapModule.sexyMapHybridMode
         or (addon.db and addon.db.profile and addon.db.profile.modules
             and addon.db.profile.modules.minimap
-            and addon.db.profile.modules.minimap.sexymap_mode == "hybrid")
+            and IsSexyMapHybridModeValue(addon.db.profile.modules.minimap.sexymap_mode))
 
     if not isHybridMode then
         -- DragonUI border top styling (skipped in hybrid mode)
@@ -766,7 +787,7 @@ local function ReplaceBlizzardFrame(frame)
             local hybridCheck = MinimapModule.sexyMapHybridMode
                 or (addon.db and addon.db.profile and addon.db.profile.modules
                     and addon.db.profile.modules.minimap
-                    and addon.db.profile.modules.minimap.sexymap_mode == "hybrid")
+                    and IsSexyMapHybridModeValue(addon.db.profile.modules.minimap.sexymap_mode))
             if not hybridCheck then
                 UpdateMinimapMaskForRotation()
             end
@@ -1109,13 +1130,27 @@ local function IsFadeEnabled()
         and addon.db.profile.minimap.addon_button_fade or false
 end
 
+-- Collector buttons should stay fully visible inside the collector box.
+local function IsInsideCollector(button)
+    local collector = MinimapModule.frames and MinimapModule.frames.iconCollector
+    return collector and button and button:GetParent() == collector
+end
+
 -- Fade functions for hover effect (check setting dynamically)
 local function fadein(self)
+    if IsInsideCollector(self) then
+        self:SetAlpha(1)
+        return
+    end
     if not IsFadeEnabled() then return end
     securecall(UIFrameFadeIn, self, 0.2, self:GetAlpha(), 1.0)
 end
 
 local function fadeout(self)
+    if IsInsideCollector(self) then
+        self:SetAlpha(1)
+        return
+    end
     if not IsFadeEnabled() then return end
     securecall(UIFrameFadeOut, self, 0.2, self:GetAlpha(), 0.2)
 end
@@ -1370,6 +1405,8 @@ local BLIZZARD_MINIMAP_BUTTONS = {
     ['TimeManagerClockButton'] = true,
     ['MiniMapInstanceDifficulty'] = true,
     ['MiniMapLFGFrame'] = true,   -- dungeon eye — has its own styling, skip skin
+    ['MiniMapVoiceChatFrame'] = true,
+    ['MiniMapVoiceChatFrameIcon'] = true,
     ['DragonUI_MinimapSettingsButton'] = true,
 }
 
@@ -1380,8 +1417,9 @@ local function GetAllMinimapButtons()
     -- Helper to scan children of a frame for buttons
     local function ScanFrame(parentFrame)
         if not parentFrame then return end
-        for i = 1, parentFrame:GetNumChildren() do
-            local child = select(i, parentFrame:GetChildren())
+        local children = { parentFrame:GetChildren() }
+        for i = 1, #children do
+            local child = children[i]
             if child and child:GetObjectType() == "Button" and not seen[child] then
                 -- Skip known Blizzard minimap buttons to avoid stray borders
                 local childName = child:GetName()
@@ -1444,741 +1482,76 @@ local function RestoreLibDBIconRadius()
     MinimapModule.originalStates.LibDBIconRadius = nil
 end
 
-local function NormalizeSettingsButtonAngle(angle)
-    angle = tonumber(angle) or 315
-    angle = angle % 360
-    if angle < 0 then
-        angle = angle + 360
-    end
-    return angle
-end
-
-local function GetStoredSettingsButtonAngle()
-    local minimapConfig = addon and addon.db and addon.db.profile and addon.db.profile.minimap
-    if not minimapConfig then
-        return 315
-    end
-
-    return NormalizeSettingsButtonAngle(minimapConfig.settings_button_angle)
-end
-
-local function SetStoredSettingsButtonAngle(angle)
-    local minimapConfig = addon and addon.db and addon.db.profile and addon.db.profile.minimap
-    if not minimapConfig then
-        return
-    end
-
-    minimapConfig.settings_button_angle = NormalizeSettingsButtonAngle(angle)
-end
-
-local function GetSettingsButtonOrbitRadius(button)
-    local mapRadius = math.max(Minimap:GetWidth(), Minimap:GetHeight()) * 0.5
-    local buttonRadius = (button and button:GetWidth() or DRAGONUI_SETTINGS_BUTTON_SIZE) * 0.5
-    return math.max(12, mapRadius - buttonRadius + 2)
-end
-
-local function PositionSettingsButtonByAngle(button, angle)
-    if not button or not Minimap then
-        return
-    end
-
-    local normalized = NormalizeSettingsButtonAngle(angle)
-    local radians = math.rad(normalized)
-    local radius = GetSettingsButtonOrbitRadius(button)
-    local offsetX = math.cos(radians) * radius
-    local offsetY = math.sin(radians) * radius
-
-    button:ClearAllPoints()
-    button:SetPoint("CENTER", Minimap, "CENTER", offsetX, offsetY)
-    button.DragonUI_Angle = normalized
-end
-
-local function GetCursorAngleAroundMinimap()
-    if not Minimap or not GetCursorPosition then
-        return nil
-    end
-
-    local centerX, centerY = Minimap:GetCenter()
-    if not centerX or not centerY then
-        return nil
-    end
-
-    local effectiveScale = Minimap.GetEffectiveScale and Minimap:GetEffectiveScale() or 1
-    local cursorX, cursorY = GetCursorPosition()
-    cursorX = cursorX / effectiveScale
-    cursorY = cursorY / effectiveScale
-
-    local deltaX = cursorX - centerX
-    local deltaY = cursorY - centerY
-
-    if deltaX == 0 and deltaY == 0 then
-        return nil
-    end
-
-    local radians
-    if math.atan2 then
-        radians = math.atan2(deltaY, deltaX)
-    else
-        radians = math.atan(deltaY / (deltaX == 0 and 0.0001 or deltaX))
-        if deltaX < 0 then
-            radians = radians + math.pi
-        elseif deltaY < 0 then
-            radians = radians + (2 * math.pi)
-        end
-    end
-
-    return NormalizeSettingsButtonAngle(math.deg(radians))
-end
-
-local function OpenDragonUIInterfaceConfiguration()
-    if addon.OptionsPanel and addon.OptionsPanel.Open then
-        addon.OptionsPanel:Open("general")
-        return
-    end
-
-    addon:ToggleOptionsUI("general")
-end
-
 -- ============================================================================
--- MINIMAP ICON COLLECTOR
+-- MINIMAP ICON COLLECTOR (bridge to minimap_collector.lua)
 -- ============================================================================
 
-local MINIMAP_COLLECTOR_INCLUDE = {
-    "WIM_IconFrame",
-    "CTMod2_MinimapButton",
-    "PoisonerMinimapButton",
-}
-
-local MINIMAP_COLLECTOR_IGNORE = {
-    "MiniMapTrackingFrame",
-    "MiniMapMeetingStoneFrame",
-    "MiniMapMailFrame",
-    "MiniMapBattlefieldFrame",
-    "MiniMapWorldMapButton",
-    "MiniMapPing",
-    "MinimapBackdrop",
-    "MinimapZoomIn",
-    "MinimapZoomOut",
-    "BookOfTracksFrame",
-    "GatherNote",
-    "FishingExtravaganzaMini",
-    "MiniNotePOI",
-    "RecipeRadarMinimapIcon",
-    "FWGMinimapPOI",
-    "CartographerNotesPOI",
-    "DuowanMinimapButton",
-    "EnhancedFrameMinimapButton",
-    "GFW_TrackMenuFrame",
-    "GFW_TrackMenuButton",
-    "TDial_TrackingIcon",
-    "TDial_TrackButton",
-    "MiniMapTracking",
-    "GatherMatePin",
-    "HandyNotesPin",
-    "TimeManagerClockButton",
-    "GameTimeFrame",
-    "DA_Minimap",
-    "BigFootMinimapButton",
-    "WoWShellMiniButton",
-    "MiniMapVoiceChatFrame",
-    "SexyMapCoordFrame",
-    "MiniMapLFGFrame",
-    "QuestPointerPOI",
-    "poiMinimap",
-    "DragonUI_MinimapSettingsButton",
-    "DragonUI_MinimapIconCollector",
-}
-
-local MINIMAP_COLLECTOR_EXTRA_FIXES = {
-    ["GathererMinimapButton"] = function()
-        if GathererMinimapButton and GathererMinimapButton.mask then
-            GathererMinimapButton.mask:SetHeight(31)
-            GathererMinimapButton.mask:SetWidth(31)
-        end
-    end,
-}
-
-local MINIMAP_COLLECTOR_SPECIAL_FRAMES = {
-    AtlasButtonFrame = true,
-}
-
-local MINIMAP_COLLECTOR_LAYOUT_FIXES = {
-    VuhDoMinimapButton = {
-        buttonSize = {31, 31},
-        iconOffset = {5, -5},
-        overlayOffset = {-1, 1},
-        overlaySize = {55, 55},
-    },
-    LibDBIcon10_Questie = {
-        buttonSize = {31, 31},
-        iconOffset = {5, -6},
-        backgroundOffset = {5, -5},
-        overlayOffset = {-1, 1},
-        overlaySize = {55, 55},
-    },
-}
-
-local function IsCollectorIgnored(frameName)
-    if not frameName or frameName == "" then
-        return true
-    end
-
-    for _, needle in ipairs(MINIMAP_COLLECTOR_IGNORE) do
-        if string.find(frameName, needle) then
-            return true
-        end
-    end
-
-    if string.find(frameName, "^QuestPointerPOI") or string.find(frameName, "^MinimapPOI") or
-        string.find(frameName, "^QuestPOI") then
-        return true
-    end
-
-    return false
-end
-
-local function PrepareCollectedButton(button)
-    if not button then
+local function GetConfiguredMinimapCollector()
+    local collector = addon and addon.MinimapCollector
+    if not collector or type(collector.Configure) ~= "function" then
         return nil
     end
 
-    if button.RegisterForClicks then
-        button:RegisterForClicks("LeftButtonDown", "RightButtonDown")
-    end
-
-    return button
-end
-
-local function ShouldCollectMinimapButton(button)
-    if not button or button == MinimapModule.frames.settingsButton or button == MinimapModule.frames.iconCollector then
-        return false
-    end
-
-    if button.DragonUI_CollectorManaged then
-        return true
-    end
-
-    local name = button.GetName and button:GetName()
-    if name and MINIMAP_COLLECTOR_SPECIAL_FRAMES[name] then
-        return true
-    end
-
-    if IsCollectorIgnored(name) or IsQuestMinimapPin(button) then
-        return false
-    end
-
-    if not name then
-        return false
-    end
-
-    local hasClick = false
-    local hasMouseUp = false
-    local hasMouseDown = false
-    if button.HasScript then
-        hasClick = button:HasScript("OnClick") and button:GetScript("OnClick") ~= nil
-        hasMouseUp = button:HasScript("OnMouseUp") and button:GetScript("OnMouseUp") ~= nil
-        hasMouseDown = button:HasScript("OnMouseDown") and button:GetScript("OnMouseDown") ~= nil
-    elseif button.GetScript then
-        local okClick, clickScript = pcall(button.GetScript, button, "OnClick")
-        local okMouseUp, mouseUpScript = pcall(button.GetScript, button, "OnMouseUp")
-        local okMouseDown, mouseDownScript = pcall(button.GetScript, button, "OnMouseDown")
-        hasClick = okClick and clickScript ~= nil
-        hasMouseUp = okMouseUp and mouseUpScript ~= nil
-        hasMouseDown = okMouseDown and mouseDownScript ~= nil
-    end
-
-    if hasClick or hasMouseUp or hasMouseDown then
-        return true
-    end
-
-    if button.GetChildren then
-        for _, subchild in ipairs({button:GetChildren()}) do
-            if subchild and subchild.GetScript then
-                local ok, clickScript = pcall(subchild.GetScript, subchild, "OnClick")
-                if ok and clickScript then
-                    button.DragonUI_CollectorSubButton = subchild
-                    return true
-                end
-            end
-        end
-    end
-
-    return false
-end
-
-local function TryAddCollectedEntry(entries, seen, child)
-    if not child or not ShouldCollectMinimapButton(child) then
-        return
-    end
-
-    local name = child.GetName and child:GetName()
-    local key = name or tostring(child)
-    if seen[key] then
-        return
-    end
-
-    seen[key] = true
-    entries[#entries + 1] = {
-        key = key,
-        title = name or "Addon",
-        button = child,
-    }
-end
-
-local function GetCollectedButtonEntries()
-    local entries = {}
-    local seen = {}
-    local sources = {Minimap:GetChildren()}
-
-    if MinimapBackdrop then
-        for _, child in ipairs({MinimapBackdrop:GetChildren()}) do
-            table.insert(sources, child)
-        end
-    end
-
-    for _, globalName in ipairs(MINIMAP_COLLECTOR_INCLUDE) do
-        local child = _G[globalName]
-        if child then
-            table.insert(sources, child)
-        end
-    end
-
-    for _, child in ipairs(sources) do
-        TryAddCollectedEntry(entries, seen, child)
-    end
-
-    local collector = MinimapModule.frames.iconCollector
-    if collector then
-        for _, child in ipairs({collector:GetChildren()}) do
-            if child and child.DragonUI_CollectorManaged then
-                TryAddCollectedEntry(entries, seen, child)
-            end
-        end
-    end
-
-    table.sort(entries, function(a, b)
-        return string.lower(a.title or "") < string.lower(b.title or "")
-    end)
-
-    return entries
-end
-
-local function CreateIntegratedMinimapCollector()
-    if MinimapModule.frames.iconCollector then
-        return MinimapModule.frames.iconCollector
-    end
-
-    local collector = CreateFrame("Frame", "DragonUI_MinimapIconCollector", UIParent)
-    collector:SetFrameStrata("MEDIUM")
-    collector:SetFrameLevel(24)
-    collector:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        tile = false,
-        edgeSize = 1,
-        insets = {left = 0, right = 0, top = 0, bottom = 0},
+    collector:Configure({
+        addon = addon,
+        L = L,
+        MinimapModule = MinimapModule,
+        DRAGONUI_SETTINGS_BUTTON_SIZE = DRAGONUI_SETTINGS_BUTTON_SIZE,
+        DRAGONUI_SETTINGS_BUTTON_ICON = DRAGONUI_SETTINGS_BUTTON_ICON,
+        DRAGONUI_SETTINGS_BUTTON_ICON_FALLBACK = DRAGONUI_SETTINGS_BUTTON_ICON_FALLBACK,
+        DRAGONUI_CLASSIC_COLLECTOR_ICON = DRAGONUI_CLASSIC_COLLECTOR_ICON,
+        GetAllMinimapButtons = GetAllMinimapButtons,
+        IsQuestMinimapPin = IsQuestMinimapPin,
+        ApplyAddonIconSkin = ApplyAddonIconSkin,
+        UnskinAddonButton = UnskinAddonButton,
+        IsFadeEnabled = IsFadeEnabled,
+        fadein = fadein,
+        fadeout = fadeout,
     })
-    collector:SetBackdropColor(0.08, 0.08, 0.10, 0.5)
-    collector:SetBackdropBorderColor(0.20, 0.20, 0.24, 1)
-    collector:Hide()
-    collector.isOpen = false
 
-    MinimapModule.frames.iconCollector = collector
     return collector
 end
 
-local function PositionIconCollector()
-    local collector = MinimapModule.frames.iconCollector
-    local settingsButton = MinimapModule.frames.settingsButton
-    if not collector or not settingsButton then
-        return
-    end
-
-    collector:ClearAllPoints()
-    collector:SetPoint("TOPRIGHT", settingsButton, "TOPLEFT", -2, 0)
-end
-
-local function ResizeIconCollector(collector, count)
-    if count <= 0 then
-        collector:SetSize(200, 60)
-        return
-    end
-
-    local rows = math.ceil(count / 5)
-    collector:SetSize((5 * 35) + 30, (rows * 35) + 30)
-end
-
-local function RememberCollectedButtonOrigin(button)
-    if not button or button.DragonUI_CollectorOriginRecorded then
-        return
-    end
-
-    button.DragonUI_CollectorOriginRecorded = true
-    button.DragonUI_CollectorOriginalParent = button:GetParent()
-    button.DragonUI_CollectorOriginalStrata = button:GetFrameStrata()
-    button.DragonUI_CollectorOriginalLevel = button:GetFrameLevel()
-    button.DragonUI_CollectorOriginalShown = button:IsShown()
-    button.DragonUI_CollectorOriginalAlpha = button:GetAlpha()
-    button.DragonUI_CollectorOriginalWidth, button.DragonUI_CollectorOriginalHeight = button:GetSize()
-    button.DragonUI_CollectorOriginalPoints = {}
-
-    for i = 1, button:GetNumPoints() do
-        button.DragonUI_CollectorOriginalPoints[i] = {button:GetPoint(i)}
-    end
-end
-
-local function RestoreCollectedButtonOrigin(button)
-    if not button or not button.DragonUI_CollectorOriginRecorded then
-        return
-    end
-
-    button.DragonUI_CollectorManaged = nil
-
-    if button.DragonUI_CollectorOriginalParent then
-        button:SetParent(button.DragonUI_CollectorOriginalParent)
-    end
-
-    if button.DragonUI_CollectorOriginalStrata then
-        button:SetFrameStrata(button.DragonUI_CollectorOriginalStrata)
-    end
-
-    if button.DragonUI_CollectorOriginalLevel then
-        button:SetFrameLevel(button.DragonUI_CollectorOriginalLevel)
-    end
-
-    if button.DragonUI_CollectorOriginalWidth and button.DragonUI_CollectorOriginalHeight then
-        button:SetSize(button.DragonUI_CollectorOriginalWidth, button.DragonUI_CollectorOriginalHeight)
-    end
-
-    if button.DragonUI_CollectorOriginalAlpha then
-        button:SetAlpha(button.DragonUI_CollectorOriginalAlpha)
-    end
-
-    button:ClearAllPoints()
-    if button.DragonUI_CollectorOriginalPoints then
-        for _, point in ipairs(button.DragonUI_CollectorOriginalPoints) do
-            button:SetPoint(unpack(point))
-        end
-    end
-
-    if button.DragonUI_CollectorOriginalShown then
-        button:Show()
-    else
-        button:Hide()
-    end
-end
-
-local function RestoreCollectedButtonsToOrigin()
-    local collector = MinimapModule.frames.iconCollector
-    if not collector then
-        return
-    end
-
-    for _, child in ipairs({collector:GetChildren()}) do
-        RestoreCollectedButtonOrigin(child)
-    end
-
-    collector.isOpen = false
-    collector:Hide()
-end
-
-local function HookCollectedButtonHover(button)
-    if not button or button.DragonUI_CollectorHoverHooks then
-        return
-    end
-
-    button.DragonUI_CollectorHoverHooks = true
-    button:HookScript("OnEnter", function()
-        local collector = MinimapModule.frames.iconCollector
-        if collector then
-            collector.hoveringCollectedButton = true
-        end
-    end)
-    button:HookScript("OnLeave", function()
-        local collector = MinimapModule.frames.iconCollector
-        if collector then
-            collector.hoveringCollectedButton = nil
-        end
-    end)
-end
-
-local function ApplyCollectedButtonLayoutFix(button)
-    if not button or not button.GetName then
-        return
-    end
-
-    local name = button:GetName()
-    local fix = name and MINIMAP_COLLECTOR_LAYOUT_FIXES[name]
-    if not fix then
-        return
-    end
-
-    if fix.buttonSize then
-        button:SetSize(fix.buttonSize[1], fix.buttonSize[2])
-    end
-
-    local function FixNamedRegion(suffix, offset, size)
-        local region = _G[name .. suffix]
-        if not region then
-            return
-        end
-        region:ClearAllPoints()
-        if size then
-            region:SetSize(size[1], size[2])
-        end
-        if offset then
-            region:SetPoint("TOPLEFT", button, "TOPLEFT", offset[1], offset[2])
-        end
-    end
-
-    FixNamedRegion("Icon", fix.iconOffset, nil)
-    FixNamedRegion("Overlay", fix.overlayOffset, fix.overlaySize)
-
-    if name == "LibDBIcon10_Questie" then
-        for _, region in ipairs({button:GetRegions()}) do
-            if region and region.GetObjectType and region:GetObjectType() == "Texture" and region.GetTexture then
-                local texture = region:GetTexture()
-                if texture then
-                    local textureString = tostring(texture)
-                    if string.find(textureString, "MiniMap%-TrackingBorder") then
-                        region:ClearAllPoints()
-                        region:SetSize(fix.overlaySize[1], fix.overlaySize[2])
-                        region:SetPoint("TOPLEFT", button, "TOPLEFT", fix.overlayOffset[1], fix.overlayOffset[2])
-                    elseif string.find(textureString, "complete%.blp") then
-                        region:ClearAllPoints()
-                        region:SetSize(17, 17)
-                        region:SetPoint("TOPLEFT", button, "TOPLEFT", fix.iconOffset[1], fix.iconOffset[2])
-                    elseif string.find(textureString, "UI%-Minimap%-Background") then
-                        region:ClearAllPoints()
-                        region:SetSize(20, 20)
-                        region:SetPoint("TOPLEFT", button, "TOPLEFT", fix.backgroundOffset[1], fix.backgroundOffset[2])
-                    end
-                end
-            end
-        end
-    end
-end
-
-local function PlaceCollectedButton(button, collector, index)
-    if not button or not collector then
-        return
-    end
-
-    KeepExternalMinimapButtonHidden(button)
-    PrepareCollectedButton(button)
-    RememberCollectedButtonOrigin(button)
-    HookCollectedButtonHover(button)
-    UnskinAddonButton(button)
-
-    button:EnableMouse(true)
-    button.DragonUI_CollectorManaged = true
-    button:SetParent(collector)
-    button:SetFrameStrata(collector:GetFrameStrata())
-    button:SetFrameLevel(collector:GetFrameLevel() + 2)
-    button:SetAlpha(1)
-    button:ClearAllPoints()
-
-    local col = (index - 1) % 5
-    local row = math.floor((index - 1) / 5)
-    local buttonW, buttonH = button:GetSize()
-    if not buttonW or buttonW <= 0 then buttonW = 31 end
-    if not buttonH or buttonH <= 0 then buttonH = 31 end
-    local offsetX = (col * 35) + 15 + ((35 - buttonW) / 2)
-    local offsetY = -((row * 35) + 15 + ((35 - buttonH) / 2))
-    button:SetPoint("TOPLEFT", collector, "TOPLEFT", offsetX, offsetY)
-    ApplyCollectedButtonLayoutFix(button)
-
-    local extraFix = button.GetName and MINIMAP_COLLECTOR_EXTRA_FIXES[button:GetName()]
-    if extraFix then
-        extraFix(button)
-    end
-
-    button:Show()
-end
-
-local function HideIntegratedMinimapCollector()
-    local collector = MinimapModule.frames.iconCollector
-    if not collector then
-        return
-    end
-
-    collector.isOpen = false
-    for _, entry in ipairs(GetCollectedButtonEntries()) do
-        if entry.button then
-            entry.button:Hide()
-        end
-    end
-    collector:Hide()
-end
-
 local function RefreshIntegratedMinimapCollector()
-    local collector = CreateIntegratedMinimapCollector()
-    local entries = GetCollectedButtonEntries()
-
-    PositionIconCollector()
-    ResizeIconCollector(collector, #entries)
-
-    for index, entry in ipairs(entries) do
-        PlaceCollectedButton(entry.button, collector, index)
-    end
-
-    if #entries == 0 then
-        collector.isOpen = false
-        collector:Hide()
-        return
-    end
-
-    if collector.isOpen then
-        collector:Show()
-    else
-        for _, entry in ipairs(entries) do
-            if entry.button then
-                entry.button:Hide()
-            end
-        end
-        collector:Hide()
+    local collector = GetConfiguredMinimapCollector()
+    if collector and collector.Refresh then
+        collector:Refresh()
     end
 end
 
 local function ToggleIntegratedMinimapCollector()
-    local collector = CreateIntegratedMinimapCollector()
-    local entries = GetCollectedButtonEntries()
-    if #entries == 0 then
-        collector.isOpen = false
-        collector:Hide()
-        return
+    local collector = GetConfiguredMinimapCollector()
+    if collector and collector.Toggle then
+        collector:Toggle()
     end
-
-    collector.isOpen = not collector.isOpen
-    RefreshIntegratedMinimapCollector()
-end
-
-KeepExternalMinimapButtonHidden = function(button)
-    if not button or button.DragonUI_CollectorVisibilityHooked then
-        return
-    end
-
-    button.DragonUI_CollectorVisibilityHooked = true
-    button:HookScript("OnShow", function(self)
-        if not MinimapModule.applied then
-            return
-        end
-
-        local collector = MinimapModule.frames.iconCollector
-        if collector and self:GetParent() == collector then
-            if collector.isOpen then
-                self:Show()
-            else
-                self:Hide()
-            end
-        elseif self.DragonUI_CollectorManaged then
-            self:Hide()
-        end
-    end)
 end
 
 local function HideIntegratedAddonMinimapButtons()
-    RefreshIntegratedMinimapCollector()
+    local collector = GetConfiguredMinimapCollector()
+    if collector and collector.HideIntegratedAddonButtons then
+        collector:HideIntegratedAddonButtons()
+    end
 end
 
-local function CreateDragonUISettingsButton()
-    if MinimapModule.frames.settingsButton then
-        return MinimapModule.frames.settingsButton
+local function HideIntegratedMinimapCollector()
+    local collector = GetConfiguredMinimapCollector()
+    if collector and collector.Hide then
+        collector:Hide()
     end
+end
 
-    local button = CreateFrame("Button", "DragonUI_MinimapSettingsButton", Minimap)
-    button:SetFrameStrata(Minimap:GetFrameStrata())
-    button:SetFrameLevel(Minimap:GetFrameLevel() + 20)
-    button:SetSize(DRAGONUI_SETTINGS_BUTTON_SIZE, DRAGONUI_SETTINGS_BUTTON_SIZE)
-    button:SetPoint("BOTTOMRIGHT", Minimap, "BOTTOMRIGHT", -2, 2)
-    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    button:SetHitRectInsets(0, 0, 0, 0)
-
-    local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 4, -4)
-    icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -4, 4)
-    addon:SafeSetTexture(icon, DRAGONUI_SETTINGS_BUTTON_ICON, DRAGONUI_SETTINGS_BUTTON_ICON_FALLBACK)
-    icon:SetTexCoord(0.16, 0.84, 0.16, 0.84)
-    button.icon = icon
-
-    local ring = button:CreateTexture(nil, "OVERLAY")
-    ring:SetAllPoints(button)
-    ring:SetTexture("Interface\\AddOns\\DragonUI\\assets\\border_buttons.tga")
-    ring:SetVertexColor(1, 0.82, 0.28)
-    button.circle = ring
-
-    button:RegisterForDrag("LeftButton")
-    button:SetScript("OnClick", function(self, mouseButton)
-        if button.DragonUI_SuppressClickUntil and GetTime and GetTime() < button.DragonUI_SuppressClickUntil then
-            return
-        end
-
-        if mouseButton == "RightButton" then
-            OpenDragonUIInterfaceConfiguration()
-        else
-            ToggleIntegratedMinimapCollector()
-        end
-    end)
-    button:SetScript("OnEnter", function(self)
-        fadein(self)
-        if GameTooltip then
-            GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-            GameTooltip:SetText(L["Minimap Buttons"] or "Minimap Buttons")
-            GameTooltip:AddLine(L["Left-click to show or hide minimap addon buttons."] or
-                "Left-click to show or hide minimap addon buttons.", 1, 0.82, 0, true)
-            GameTooltip:AddLine(L["Right-click to open DragonUI settings."] or
-                "Right-click to open DragonUI settings.", 1, 0.82, 0, true)
-            GameTooltip:AddLine(L["Drag to move"] or "Drag to move", 0.7, 0.7, 0.7, true)
-            GameTooltip:Show()
-        end
-    end)
-    button:SetScript("OnLeave", function(self)
-        fadeout(self)
-        if GameTooltip then
-            GameTooltip:Hide()
-        end
-    end)
-    button:SetScript("OnDragStart", function(self)
-        self.DragonUI_Dragging = true
-        self.DragonUI_DragMoved = false
-        local initialAngle = GetCursorAngleAroundMinimap()
-        if initialAngle then
-            PositionSettingsButtonByAngle(self, initialAngle)
-            SetStoredSettingsButtonAngle(initialAngle)
-            PositionIconCollector()
-        end
-        self:SetScript("OnUpdate", function(frame)
-            local angle = GetCursorAngleAroundMinimap()
-            if angle then
-                PositionSettingsButtonByAngle(frame, angle)
-                SetStoredSettingsButtonAngle(angle)
-                PositionIconCollector()
-                frame.DragonUI_DragMoved = true
-            end
-        end)
-    end)
-    button:SetScript("OnDragStop", function(self)
-        self.DragonUI_Dragging = false
-        self:SetScript("OnUpdate", nil)
-        PositionIconCollector()
-        if self.DragonUI_DragMoved and GetTime then
-            self.DragonUI_SuppressClickUntil = GetTime() + 0.2
-        end
-    end)
-
-    MinimapModule.frames.settingsButton = button
-    return button
+local function RestoreCollectedButtonsToOrigin()
+    local collector = GetConfiguredMinimapCollector()
+    if collector and collector.Restore then
+        collector:Restore()
+    end
 end
 
 local function UpdateDragonUISettingsButton()
-    local button = CreateDragonUISettingsButton()
-    if not button then return end
-
-    PositionSettingsButtonByAngle(button, GetStoredSettingsButtonAngle())
-    PositionIconCollector()
-    button:SetAlpha(IsFadeEnabled() and 0.2 or 1)
-    button:Show()
-    HideIntegratedAddonMinimapButtons()
+    local collector = GetConfiguredMinimapCollector()
+    if collector and collector.UpdateSettingsButton then
+        collector:UpdateSettingsButton()
+    end
 end
 
 -- Function to apply skins to all minimap buttons (exposed for re-application on addon load)
@@ -2259,24 +1632,31 @@ minimapButtonSkinFrame:SetScript("OnEvent", function(self, event, addonName)
     if event == "PLAYER_ENTERING_WORLD" then
         -- Watch for new minimap children for a few seconds after login/reload.
         -- Re-scan periodically: some addons mutate existing icon regions without changing child count.
-        if addon.db and addon.db.profile and addon.db.profile.minimap and addon.db.profile.minimap.addon_button_skin then
-            local elapsed = 0
-            local checkInterval = 0
-            self:SetScript("OnUpdate", function(self, dt)
-                elapsed = elapsed + dt
-                if elapsed > 6.0 then
-                    self:SetScript("OnUpdate", nil)
-                    return
-                end
-                checkInterval = checkInterval + dt
-                if checkInterval >= 0.3 then
-                    checkInterval = 0
-                    ApplySkinsToAllMinimapButtons()
-                    UpdateCalendarDate()
-                    RefreshIntegratedMinimapCollector()
-                end
-            end)
+        local skinEnabled = addon.db and addon.db.profile and addon.db.profile.minimap and
+            addon.db.profile.minimap.addon_button_skin
+        if skinEnabled then
+            ApplySkinsToAllMinimapButtons()
         end
+        UpdateCalendarDate()
+        RefreshIntegratedMinimapCollector()
+        local elapsed = 0
+        local checkInterval = 0
+        self:SetScript("OnUpdate", function(self, dt)
+            elapsed = elapsed + dt
+            if elapsed > 6.0 then
+                self:SetScript("OnUpdate", nil)
+                return
+            end
+            checkInterval = checkInterval + dt
+            if checkInterval >= 0.3 then
+                checkInterval = 0
+                if skinEnabled then
+                    ApplySkinsToAllMinimapButtons()
+                end
+                UpdateCalendarDate()
+                RefreshIntegratedMinimapCollector()
+            end
+        end)
         return
     end
 
@@ -2302,6 +1682,86 @@ minimapButtonSkinFrame:SetScript("OnEvent", function(self, event, addonName)
         end
     end)
 end)
+
+local function GetUnmanagedCollectorButtonCount()
+    local buttons = GetAllMinimapButtons()
+    local settingsButton = MinimapModule.frames and MinimapModule.frames.settingsButton
+    local count = 0
+
+    for _, child in ipairs(buttons) do
+        if child ~= settingsButton and not IsQuestMinimapPin(child) and not child.DragonUI_CollectorManaged then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+local minimapCollectorSyncFrame = CreateFrame("Frame")
+do
+    local elapsed = 0
+    local syncInterval = 1.00
+    local lastUnmanagedCount = 0
+    local lastMinimapChildCount = -1
+    local lastBackdropChildCount = -1
+
+    local function ResetSyncState()
+        lastUnmanagedCount = 0
+        lastMinimapChildCount = -1
+        lastBackdropChildCount = -1
+    end
+
+    minimapCollectorSyncFrame:SetScript("OnUpdate", function(_, dt)
+        elapsed = elapsed + dt
+        if elapsed < syncInterval then
+            return
+        end
+        elapsed = 0
+
+        if not IsMinimapSystemActive() then
+            ResetSyncState()
+            return
+        end
+
+        local minimapConfig = addon.db and addon.db.profile and addon.db.profile.minimap
+        if minimapConfig and minimapConfig.collector_enabled == false then
+            ResetSyncState()
+            return
+        end
+
+        local iconCollector = MinimapModule.frames and MinimapModule.frames.iconCollector
+        if iconCollector and iconCollector.isOpen then
+            ResetSyncState()
+            return
+        end
+
+        local minimapChildCount = (Minimap and Minimap.GetNumChildren and Minimap:GetNumChildren()) or 0
+        local backdropChildCount = (MinimapBackdrop and MinimapBackdrop.GetNumChildren and MinimapBackdrop:GetNumChildren()) or 0
+        local childCountChanged = minimapChildCount ~= lastMinimapChildCount
+            or backdropChildCount ~= lastBackdropChildCount
+
+        if not childCountChanged then
+            return
+        end
+
+        lastMinimapChildCount = minimapChildCount
+        lastBackdropChildCount = backdropChildCount
+
+        local unmanagedCount = GetUnmanagedCollectorButtonCount()
+        if unmanagedCount <= 0 then
+            lastUnmanagedCount = 0
+            return
+        end
+
+        local shouldRefresh = unmanagedCount ~= lastUnmanagedCount
+
+        lastUnmanagedCount = unmanagedCount
+
+        if shouldRefresh then
+            RefreshIntegratedMinimapCollector()
+        end
+    end)
+end
 
 -- Style PVP battleground frame with faction detection
 local function StylePVPBattlefieldFrame()
@@ -2352,7 +1812,7 @@ local function RemoveBlizzardFrames()
     local isHybridMode = MinimapModule.sexyMapHybridMode
         or (addon.db and addon.db.profile and addon.db.profile.modules
             and addon.db.profile.modules.minimap
-            and addon.db.profile.modules.minimap.sexymap_mode == "hybrid")
+            and IsSexyMapHybridModeValue(addon.db.profile.modules.minimap.sexymap_mode))
 
     if MiniMapWorldMapButton then
         MiniMapWorldMapButton:Hide()
@@ -2443,7 +1903,7 @@ function MinimapModule:UpdateTrackingIcon()
     local isHybridMode = self.sexyMapHybridMode
         or (addon.db and addon.db.profile and addon.db.profile.modules
             and addon.db.profile.modules.minimap
-            and addon.db.profile.modules.minimap.sexymap_mode == "hybrid")
+            and IsSexyMapHybridModeValue(addon.db.profile.modules.minimap.sexymap_mode))
     if isHybridMode then return end
 
     local texture = GetTrackingTexture()
@@ -2924,7 +2384,7 @@ function MinimapModule:InitializeMinimapSystem()
     local isHybridMode = self.sexyMapHybridMode
         or (addon.db and addon.db.profile and addon.db.profile.modules
             and addon.db.profile.modules.minimap
-            and addon.db.profile.modules.minimap.sexymap_mode == "hybrid")
+            and IsSexyMapHybridModeValue(addon.db.profile.modules.minimap.sexymap_mode))
 
     if not isHybridMode then
         self.borderFrame = CreateMinimapBorderFrame(232, 232)
@@ -3075,8 +2535,9 @@ local function GetClockTextFrame()
     end
 
     -- Search in children
-    for i = 1, TimeManagerClockButton:GetNumChildren() do
-        local child = select(i, TimeManagerClockButton:GetChildren())
+    local children = { TimeManagerClockButton:GetChildren() }
+    for i = 1, #children do
+        local child = children[i]
         if child and child.GetFont then
             return child
         end
@@ -3149,7 +2610,7 @@ function MinimapModule:ApplyAllSettings()
     local isHybridMode = self.sexyMapHybridMode
         or (addon.db and addon.db.profile and addon.db.profile.modules
             and addon.db.profile.modules.minimap
-            and addon.db.profile.modules.minimap.sexymap_mode == "hybrid")
+            and IsSexyMapHybridModeValue(addon.db.profile.modules.minimap.sexymap_mode))
 
     if not isHybridMode then
         --  APPLY BORDER ALPHA

@@ -14,6 +14,11 @@ DragonUI_Options - 繁體中文本地化檔案
 local L = LibStub("AceLocale-3.0"):NewLocale("DragonUI_Options", "zhTW")
 if not L then return end
 
+L["Collector"] = "收集器"
+L["Minimap Buttons Collector"] = "小地圖按鈕收集器"
+L["Circle"] = "圓形"
+L["Arrow"] = "箭頭"
+
 -- ============================================================================
 -- 通用 / 面板
 -- ============================================================================

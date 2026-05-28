@@ -21,6 +21,7 @@
     
     <!-- Buffs, Minimap & Quest Tracker modules -->
     <Script file="BuffFrame.lua"/> 
+    <Script file="minimap_collector.lua"/>
     <Script file="minimap.lua"/>    
     <Script file="questtracker.lua"/>   
     <Script file="lootroll.lua"/>

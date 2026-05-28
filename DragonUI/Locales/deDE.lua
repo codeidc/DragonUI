@@ -120,6 +120,10 @@ L["Keybinding mode deactivated."] = "Tastenbelegungsmodus deaktiviert."
 -- ============================================================================
 
 L["DragonUI: Minimap module restored to Blizzard defaults"] = "DragonUI: Minimap-Modul auf Blizzard-Standard zurückgesetzt"
+L["Minimap Buttons"] = "Minikarten-Schaltflachen"
+L["Minimap Buttons Collector"] = "Minikarten-Schaltflachen"
+L["Left-click to show or hide minimap addon buttons."] = "Linksklick, um Minikarten-Addon-Schaltflachen zu offnen."
+L["Right-click to open DragonUI settings."] = "Rechtsklick, um DragonUI-Einstellungen zu offnen."
 
 -- ============================================================================
 -- EDITOR MODE LABELS (displayed on mover overlays)

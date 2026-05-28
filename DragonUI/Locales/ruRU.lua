@@ -120,6 +120,10 @@ L["Keybinding mode deactivated."] = "Режим назначения клави�
 -- ============================================================================
 
 L["DragonUI: Minimap module restored to Blizzard defaults"] = "DragonUI: Модуль миникарты восстановлен до стандартных настроек Blizzard"
+L["Minimap Buttons"] = "Кнопки миникарты"
+L["Minimap Buttons Collector"] = "Кнопки миникарты"
+L["Left-click to show or hide minimap addon buttons."] = "ЛКМ, чтобы открыть кнопки аддонов миникарты."
+L["Right-click to open DragonUI settings."] = "ПКМ, чтобы открыть настройки DragonUI."
 
 -- ============================================================================
 -- EDITOR MODE LABELS (displayed on mover overlays)

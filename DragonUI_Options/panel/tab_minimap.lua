@@ -19,12 +19,88 @@ local Panel = addon.OptionsPanel
 -- ============================================================================
 
 local function RefreshMinimap()
+    if addon.RefreshMinimap then
+        addon:RefreshMinimap()
+        return
+    end
+
     if addon.MinimapModule then
         addon.MinimapModule:UpdateSettings()
     end
 end
 
+local function IsCollectorEnabled()
+    local enabled = C:GetDBValue("minimap.collector_enabled")
+    if enabled == nil then
+        return true
+    end
+    return enabled
+end
+
+local function SetSectionVisualState(section, enabled)
+    if not section then
+        return
+    end
+
+    local border = section.content and section.content:GetParent()
+    if border and border.SetBackdropColor and border.SetBackdropBorderColor then
+        if enabled then
+            border:SetBackdropColor(0.08, 0.08, 0.10, 0.6)
+            border:SetBackdropBorderColor(0.20, 0.20, 0.22, 0.8)
+        else
+            border:SetBackdropColor(0.06, 0.06, 0.07, 0.45)
+            border:SetBackdropBorderColor(0.14, 0.14, 0.16, 0.6)
+        end
+    end
+
+    if section.titletext then
+        if enabled then
+            section.titletext:SetTextColor(unpack(C.Theme.textGold))
+        else
+            section.titletext:SetTextColor(unpack(C.Theme.textDim))
+        end
+    end
+end
+
 local function BuildMinimapTab(scroll)
+    -- ====================================================================
+    -- COLLECTOR SETTINGS (TOP PRIORITY)
+    -- ====================================================================
+    local collector = C:AddSection(scroll, LO["Minimap Buttons Collector"])
+    local collectorWidgets = {}
+
+    local function UpdateCollectorSectionState()
+        local enabled = IsCollectorEnabled()
+        for _, widget in ipairs(collectorWidgets) do
+            if widget and widget.SetDisabled then
+                widget:SetDisabled(not enabled)
+            end
+        end
+        SetSectionVisualState(collector, enabled)
+    end
+
+    C:AddToggle(collector, {
+        label = LO["Enable"],
+        dbPath = "minimap.collector_enabled",
+        callback = function()
+            UpdateCollectorSectionState()
+            RefreshMinimap()
+        end,
+    })
+
+    collectorWidgets[#collectorWidgets + 1] = C:AddDropdown(collector, {
+        label = LO["Style"],
+        values = {
+            dragonui = LO["Circle"],
+            classic = LO["Arrow"],
+        },
+        width = 220,
+        dbPath = "minimap.collector_style",
+        callback = RefreshMinimap,
+    })
+
+    UpdateCollectorSectionState()
+
     -- ====================================================================
     -- BASIC SETTINGS
     -- ====================================================================
@@ -160,6 +236,7 @@ local function BuildMinimapTab(scroll)
                 ["sexymap"]  = L["SexyMap"],
                 ["dragonui"] = L["DragonUI"],
                 ["hybrid"]   = L["Hybrid"],
+                ["hybrid_v2"] = L["Hybrid"] .. " v2",
             },
             width = 220,
             getFunc = function()
@@ -177,7 +254,7 @@ local function BuildMinimapTab(scroll)
                 if val == "dragonui" then
                     DisableAddOn("SexyMap")
                 else
-                    -- "sexymap" or "hybrid" both need SexyMap loaded
+                    -- "sexymap", "hybrid", and "hybrid_v2" all need SexyMap loaded
                     EnableAddOn("SexyMap")
                 end
                 StaticPopup_Show("DRAGONUI_SEXYMAP_MODE_RELOAD")
@@ -187,7 +264,8 @@ local function BuildMinimapTab(scroll)
         C:AddDescription(sm,
             "|cFF888888" .. L["SexyMap"] .. ":|r " .. L["Uses SexyMap for the minimap."] .. "\n" ..
             "|cFF888888" .. L["DragonUI"] .. ":|r " .. L["Uses DragonUI for the minimap."] .. "\n" ..
-            "|cFF888888" .. L["Hybrid"] .. ":|r " .. L["SexyMap visuals with DragonUI editor and positioning."])
+            "|cFF888888" .. L["Hybrid"] .. ":|r " .. L["SexyMap visuals with DragonUI editor and positioning."] .. "\n" ..
+            "|cFF888888Hybrid v2:|r " .. L["SexyMap visuals with DragonUI editor and positioning."])
     end
 end
 

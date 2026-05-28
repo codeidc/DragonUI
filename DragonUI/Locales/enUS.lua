@@ -122,7 +122,8 @@ L["DragonUI"] = true
 
 L["DragonUI: Minimap module restored to Blizzard defaults"] = true
 L["Minimap Buttons"] = true
-L["Left-click to show or hide minimap addon buttons."] = true
+L["Minimap Buttons Collector"] = "Minimap Buttons"
+L["Left-click to show or hide minimap addon buttons."] = "Left-Click to open minimap buttons."
 L["Right-click to open DragonUI settings."] = true
 
 -- ============================================================================

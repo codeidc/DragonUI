@@ -12,6 +12,11 @@
 local L = LibStub("AceLocale-3.0"):NewLocale("DragonUI_Options", "ptBR")
 if not L then return end
 
+L["Collector"] = "Coletor"
+L["Minimap Buttons Collector"] = "Coletor de Botões do Minimapa"
+L["Circle"] = "Círculo"
+L["Arrow"] = "Seta"
+
 -- Example:
 -- L["General"] = "Geral"
 

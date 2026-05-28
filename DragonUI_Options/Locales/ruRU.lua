@@ -15,6 +15,11 @@ When adding new strings:
 local L = LibStub("AceLocale-3.0"):NewLocale("DragonUI_Options", "ruRU")
 if not L then return end
 
+L["Collector"] = "Коллектор"
+L["Minimap Buttons Collector"] = "Коллектор кнопок миникарты"
+L["Circle"] = "Круг"
+L["Arrow"] = "Стрелка"
+
 -- ============================================================================
 -- GENERAL / PANEL
 -- ============================================================================

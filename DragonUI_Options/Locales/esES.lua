@@ -681,6 +681,10 @@ L["Y offset when XP bar is not shown"] = "Desfase Y cuando no se muestra la barr
 -- MINIMAP TAB
 -- ============================================================================
 
+L["Collector"] = "Colector"
+L["Minimap Buttons Collector"] = "Colector de Botones del Minimapa"
+L["Circle"] = "Círculo"
+L["Arrow"] = "Flecha"
 L["Basic Settings"] = "Configuración Básica"
 L["Border Alpha"] = "Alfa del Borde"
 L["Top border alpha (0 to hide)."] = "Alfa del borde superior (0 para ocultar)."

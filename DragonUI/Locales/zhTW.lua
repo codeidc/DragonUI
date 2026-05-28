@@ -44,6 +44,13 @@ L["Totem Recall Button"] = true
 
 L["Copy Text"] = "複製文字"
 
+-- Minimap tooltip strings
+L["Minimap Buttons"] = "小地圖按鈕"
+L["Minimap Buttons Collector"] = "小地圖按鈕"
+L["Left-click to show or hide minimap addon buttons."] = "左鍵開啟小地圖插件按鈕。"
+L["Right-click to open DragonUI settings."] = "右鍵開啟 DragonUI 設定。"
+L["Drag to move"] = "拖曳以移動"
+
 -- 編輯模式標籤
 L["TargetCastbar"] = "目標施法條"
 L["FocusCastbar"] = "焦點施法條"
