@@ -14,6 +14,7 @@ local ToFModule = UF.SmallFrame.Create({
     parentUnit        = "focus",
     unitEvent         = "PLAYER_FOCUS_CHANGED",
     unitTargetFilters = {"focus"},
+    hideWhenParentIsPlayer = true,
     namePrefix        = "ToF",
     frames = {
         main            = FocusFrameToT,
