@@ -48,6 +48,11 @@ local INCLUDE_BUTTONS = {
     "PoisonerMinimapButton",
 }
 
+local EXCLUDED_BUTTONS = {
+    -- MBB controls this container's anchoring; collecting it causes SetPoint dependency loops.
+    ["MBB_MinimapButtonFrame"] = true,
+}
+
 -- ----------------------------------------------------------------------------
 -- State
 -- ----------------------------------------------------------------------------
@@ -442,6 +447,8 @@ local function CollectEntries()
     local function tryAdd(child)
         if not child or child == sbtn or child == coll then return end
         if child.GetObjectType and child:GetObjectType() ~= "Button" then return end
+        local childName = child.GetName and child:GetName()
+        if childName and EXCLUDED_BUTTONS[childName] then return end
         if isQuest and isQuest(child) then return end
 
         if not child.DragonUI_CollectorManaged then
