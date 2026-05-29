@@ -74,6 +74,47 @@ local function IsCombuctorEnabled()
     return mc and mc.enabled
 end
 
+local VALID_BAGSORT_HOTKEYS = {
+    ALT_LEFT = true,
+    CTRL_LEFT = true,
+    SHIFT_LEFT = true,
+    ALT_RIGHT = true,
+    CTRL_RIGHT = true,
+    SHIFT_RIGHT = true,
+    ALT_MIDDLE = true,
+    CTRL_MIDDLE = true,
+    SHIFT_MIDDLE = true,
+}
+
+local function NormalizeBagSortHotkey(value)
+    if type(value) ~= "string" then
+        return "ALT_LEFT"
+    end
+
+    local normalized = string.upper(value)
+    if VALID_BAGSORT_HOTKEYS[normalized] then
+        return normalized
+    end
+
+    return "ALT_LEFT"
+end
+
+local function GetBagSortConfig(create)
+    if not addon.db or not addon.db.profile then return nil end
+    if create and not addon.db.profile.modules then
+        addon.db.profile.modules = {}
+    end
+
+    local modules = addon.db.profile.modules
+    if not modules then return nil end
+
+    if create and not modules.bagsort then
+        modules.bagsort = {}
+    end
+
+    return modules.bagsort
+end
+
 local function HasSetInDB(setName)
     local db = GetCombuctorDB()
     if not db or not db.inventory or not db.inventory.sets then return false end
@@ -312,16 +353,54 @@ local function BuildBagsTab(scroll)
         label = LO["Enable Bag Sort"] or "Enable Bag Sort",
         desc = LO["Add sort buttons to bag and bank frames. Also enables /sort and /sortbank slash commands."] or "Add sort buttons to bag and bank frames. Also enables /sort and /sortbank slash commands.",
         getFunc = function()
-            local mc = addon.db.profile.modules and addon.db.profile.modules.bagsort
+            local mc = GetBagSortConfig(false)
             return mc and mc.enabled
         end,
         setFunc = function(val)
-            if not addon.db.profile.modules then addon.db.profile.modules = {} end
-            if not addon.db.profile.modules.bagsort then addon.db.profile.modules.bagsort = {} end
-            addon.db.profile.modules.bagsort.enabled = val
+            local cfg = GetBagSortConfig(true)
+            if cfg then
+                cfg.enabled = val
+            end
         end,
         requiresReload = true,
     })
+
+    local hotkeyValues = {
+        ALT_LEFT = LO["Alt + Left Click"] or "Alt + Left Click",
+        CTRL_LEFT = LO["Ctrl + Left Click"] or "Ctrl + Left Click",
+        SHIFT_LEFT = LO["Shift + Left Click"] or "Shift + Left Click",
+        ALT_RIGHT = LO["Alt + Right Click"] or "Alt + Right Click",
+        CTRL_RIGHT = LO["Ctrl + Right Click"] or "Ctrl + Right Click",
+        SHIFT_RIGHT = LO["Shift + Right Click"] or "Shift + Right Click",
+        ALT_MIDDLE = LO["Alt + Middle Click"] or "Alt + Middle Click",
+        CTRL_MIDDLE = LO["Ctrl + Middle Click"] or "Ctrl + Middle Click",
+        SHIFT_MIDDLE = LO["Shift + Middle Click"] or "Shift + Middle Click",
+    }
+
+    C:AddDropdown(sortSection, {
+        label = LO["Lock Toggle Hotkey"] or "Lock Toggle Hotkey",
+        desc = LO["Choose the modifier + mouse button used to lock or unlock a bag slot while hovering it."] or "Choose the modifier + mouse button used to lock or unlock a bag slot while hovering it.",
+        values = hotkeyValues,
+        getFunc = function()
+            local cfg = GetBagSortConfig(true)
+            if not cfg then return "ALT_LEFT" end
+            cfg.lock_hotkey = NormalizeBagSortHotkey(cfg.lock_hotkey)
+            return cfg.lock_hotkey
+        end,
+        setFunc = function(value)
+            local cfg = GetBagSortConfig(true)
+            if cfg then
+                cfg.lock_hotkey = NormalizeBagSortHotkey(value)
+            end
+        end,
+        disabled = function()
+            local cfg = GetBagSortConfig(false)
+            return not (cfg and cfg.enabled)
+        end,
+        width = 240,
+    })
+
+    C:AddDescription(sortSection, LO["Use /sortlock to lock or unlock the currently hovered slot from chat."] or "Use /sortlock to lock or unlock the currently hovered slot from chat.")
 
     -- ====================================================================
     -- INVENTORY CATEGORY TABS

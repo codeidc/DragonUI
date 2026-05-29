@@ -57,6 +57,85 @@ local function GetSortMoveInterval()
     return interval
 end
 
+local DEFAULT_LOCK_HOTKEY = "ALT_LEFT"
+local LOCK_HOTKEY_MAP = {
+    ALT_LEFT = { modifier = "ALT", button = "LeftButton" },
+    CTRL_LEFT = { modifier = "CTRL", button = "LeftButton" },
+    SHIFT_LEFT = { modifier = "SHIFT", button = "LeftButton" },
+    ALT_RIGHT = { modifier = "ALT", button = "RightButton" },
+    CTRL_RIGHT = { modifier = "CTRL", button = "RightButton" },
+    SHIFT_RIGHT = { modifier = "SHIFT", button = "RightButton" },
+    ALT_MIDDLE = { modifier = "ALT", button = "MiddleButton" },
+    CTRL_MIDDLE = { modifier = "CTRL", button = "MiddleButton" },
+    SHIFT_MIDDLE = { modifier = "SHIFT", button = "MiddleButton" },
+}
+
+local function NormalizeLockHotkey(value)
+    if type(value) ~= "string" then
+        return DEFAULT_LOCK_HOTKEY
+    end
+
+    local normalized = string.upper(value)
+    if LOCK_HOTKEY_MAP[normalized] then
+        return normalized
+    end
+
+    return DEFAULT_LOCK_HOTKEY
+end
+
+local function GetConfiguredLockHotkey()
+    local cfg = GetModuleConfig()
+    local hotkey = NormalizeLockHotkey(cfg and cfg.lock_hotkey)
+    if cfg and cfg.lock_hotkey ~= hotkey then
+        cfg.lock_hotkey = hotkey
+    end
+    return hotkey
+end
+
+local function GetLocalizedModifierName(modifier)
+    if modifier == "ALT" then
+        return T("Alt", "Alt")
+    elseif modifier == "CTRL" then
+        return T("Ctrl", "Ctrl")
+    end
+    return T("Shift", "Shift")
+end
+
+local function GetLocalizedMouseButtonName(button)
+    if button == "LeftButton" then
+        return T("Left Click", "Left Click")
+    elseif button == "RightButton" then
+        return T("Right Click", "Right Click")
+    end
+    return T("Middle Click", "Middle Click")
+end
+
+local function GetLockHotkeyLabel()
+    local hotkey = GetConfiguredLockHotkey()
+    local bindData = LOCK_HOTKEY_MAP[hotkey] or LOCK_HOTKEY_MAP[DEFAULT_LOCK_HOTKEY]
+    return string.format("%s + %s", GetLocalizedModifierName(bindData.modifier), GetLocalizedMouseButtonName(bindData.button))
+end
+
+local function IsLockHotkeyPressed(mouseButton)
+    local hotkey = GetConfiguredLockHotkey()
+    local bindData = LOCK_HOTKEY_MAP[hotkey] or LOCK_HOTKEY_MAP[DEFAULT_LOCK_HOTKEY]
+    if mouseButton ~= bindData.button then
+        return false
+    end
+
+    local altDown = IsAltKeyDown and IsAltKeyDown()
+    local ctrlDown = IsControlKeyDown and IsControlKeyDown()
+    local shiftDown = IsShiftKeyDown and IsShiftKeyDown()
+
+    if bindData.modifier == "ALT" then
+        return altDown and not ctrlDown and not shiftDown
+    elseif bindData.modifier == "CTRL" then
+        return ctrlDown and not altDown and not shiftDown
+    end
+
+    return shiftDown and not altDown and not ctrlDown
+end
+
 local function GetBagnonFrame(frameType)
     if not IsBagnonLoaded() then return nil end
 
@@ -371,7 +450,7 @@ local function InstallAltClickHooks()
 
         local function HandleAltClick(self, mouseButton)
             if not BagSortModule.applied then return end
-            if mouseButton ~= "LeftButton" or not IsAltKeyDown() then return end
+            if not IsLockHotkeyPressed(mouseButton) then return end
             local now = GetTime and GetTime() or 0
             if self._dragonUISortLockLastClick and now > 0 and (now - self._dragonUISortLockLastClick) < 0.15 then
                 return
@@ -1141,10 +1220,16 @@ local function CreateActionButton(name, parent, onClick, tooltipTitle, scale, ic
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(tooltipTitle or T("Sort Items", "Sort Items"))
-        if tooltipLines then
-            for _, line in ipairs(tooltipLines) do
+        local lines = tooltipLines
+        if type(lines) == "function" then
+            lines = lines()
+        end
+        if type(lines) == "table" then
+            for _, line in ipairs(lines) do
                 GameTooltip:AddLine(line, 1, 1, 1, true)
             end
+        elseif type(lines) == "string" then
+            GameTooltip:AddLine(lines, 1, 1, 1, true)
         end
         GameTooltip:Show()
     end)
@@ -1161,6 +1246,14 @@ local function CreateActionButton(name, parent, onClick, tooltipTitle, scale, ic
 end
 
 local function CreateSortButton(name, parent, onClick, tooltipText, scale)
+    local function BuildTooltipLines()
+        return {
+            T("Click to sort items by type, rarity, and name.", "Click to sort items by type, rarity, and name."),
+            string.format(T("%s any bag slot (item or empty) to lock or unlock it.", "%s any bag slot (item or empty) to lock or unlock it."), GetLockHotkeyLabel()),
+            T("Click the lock-clear button to remove all locked slots.", "Click the lock-clear button to remove all locked slots.")
+        }
+    end
+
     return CreateActionButton(
         name,
         parent,
@@ -1168,15 +1261,18 @@ local function CreateSortButton(name, parent, onClick, tooltipText, scale)
         tooltipText,
         scale,
         "Interface\\Icons\\INV_Enchant_EssenceCosmicGreater",
-        {
-            T("Click to sort items by type, rarity, and name.", "Click to sort items by type, rarity, and name."),
-            T("Alt+LeftClick any bag slot (item or empty) to lock or unlock it.", "Alt+LeftClick any bag slot (item or empty) to lock or unlock it."),
-            T("Click the lock-clear button to remove all locked slots.", "Click the lock-clear button to remove all locked slots.")
-        }
+        BuildTooltipLines
     )
 end
 
 local function CreateClearLocksButton(name, parent, scale)
+    local function BuildTooltipLines()
+        return {
+            T("Click to clear all locked bag slots.", "Click to clear all locked bag slots."),
+            string.format(T("%s any bag slot (item or empty) to lock or unlock it.", "%s any bag slot (item or empty) to lock or unlock it."), GetLockHotkeyLabel())
+        }
+    end
+
     return CreateActionButton(
         name,
         parent,
@@ -1184,10 +1280,7 @@ local function CreateClearLocksButton(name, parent, scale)
         T("Clear Locked Slots", "Clear Locked Slots"),
         scale,
         "Interface\\Icons\\INV_Misc_Key_14",
-        {
-            T("Click to clear all locked bag slots.", "Click to clear all locked bag slots."),
-            T("Alt+LeftClick any bag slot (item or empty) to lock or unlock it.", "Alt+LeftClick any bag slot (item or empty) to lock or unlock it.")
-        }
+        BuildTooltipLines
     )
 end
 
