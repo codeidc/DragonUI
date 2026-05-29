@@ -50,6 +50,7 @@ L["Minimap Buttons Collector"] = "Botoes do minimapa"
 L["Left-click to show or hide minimap addon buttons."] = "Clique com o botao esquerdo para abrir os botoes de addons do minimapa."
 L["Right-click to open DragonUI settings."] = "Clique com o botao direito para abrir as configuracoes do DragonUI."
 L["Drag to move"] = "Arraste para mover"
+L["Animated minimap border effects for DragonUI."] = "Efeitos animados de borda do minimapa para DragonUI."
 
 -- Labels do modo editor
 L["TargetCastbar"] = "Barra de lançamento do Alvo"

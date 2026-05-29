@@ -1,4 +1,4 @@
--- ============================================================================
+﻿-- ============================================================================
 -- DragonUI - Minimap Module
 -- Based on RetailUI by Dmitriy, adapted for DragonUI.
 -- ============================================================================
@@ -55,6 +55,7 @@ local blipScale = 1.12
 local BORDER_SIZE = 71 * 2 * 2 ^ 1
 local BORDER_TO_MAP_RATIO = BORDER_SIZE / (DEFAULT_MINIMAP_WIDTH / blipScale)
 local DRAGONUI_MINIMAP_MASK = "Interface\\AddOns\\DragonUI\\assets\\uiminimapmask.tga"
+local VANILLA_MINIMAP_MASK = "Textures\\MinimapMask"
 
 local ADDON_ORBIT_RADIUS = 15
 local DRAGONUI_SETTINGS_BUTTON_SIZE = 21
@@ -221,7 +222,7 @@ local function UpdateMinimapCircleSize()
 end
 
 local function IsSexyMapHybridModeValue(mode)
-    return mode == "hybrid" or mode == "hybrid_v2"
+    return mode == "hybrid"
 end
 
 local function UpdateMinimapMaskForRotation()
@@ -239,9 +240,13 @@ local function UpdateMinimapMaskForRotation()
         return
     end
 
-    if MinimapModule.activeMask ~= DRAGONUI_MINIMAP_MASK then
-        Minimap:SetMaskTexture(DRAGONUI_MINIMAP_MASK)
-        MinimapModule.activeMask = DRAGONUI_MINIMAP_MASK
+    local minimapConfig = addon.db and addon.db.profile and addon.db.profile.minimap
+    local useVanillaMask = minimapConfig and minimapConfig.animated_border_hide_dragonui_border == true
+    local desiredMask = useVanillaMask and VANILLA_MINIMAP_MASK or DRAGONUI_MINIMAP_MASK
+
+    if MinimapModule.activeMask ~= desiredMask then
+        Minimap:SetMaskTexture(desiredMask)
+        MinimapModule.activeMask = desiredMask
     end
 end
 
@@ -965,7 +970,7 @@ local function ReplaceBlizzardFrame(frame)
     -- Try to setup immediately (frame rarely exists at load time)
     SetupWorldStateCaptureBar()
 
-    -- Hook UIParent_ManageFramePositions — Blizzard calls this AFTER creating/repositioning
+    -- Hook UIParent_ManageFramePositions -Blizzard calls this AFTER creating/repositioning
     -- capture bars, so by the time our post-hook runs the frame is guaranteed to exist
     if UIParent_ManageFramePositions then
         hooksecurefunc("UIParent_ManageFramePositions", SetupWorldStateCaptureBar)
@@ -982,7 +987,7 @@ local function ReplaceBlizzardFrame(frame)
     captureBarWatcher:RegisterEvent("ZONE_CHANGED")
     captureBarWatcher:SetScript("OnEvent", function(self, event)
         SetupWorldStateCaptureBar()
-        -- After reload/login, capture bars may not exist yet — do delayed re-checks
+        -- After reload/login, capture bars may not exist yet -do delayed re-checks
         if event == "PLAYER_ENTERING_WORLD" then
             captureBarDelayElapsed = 0
             captureBarDelayRetries = 0
@@ -1001,7 +1006,7 @@ local function ReplaceBlizzardFrame(frame)
         end
     end)
 
-    -- In hybrid mode, don't override tracking button scripts — SexyMap's Buttons module handles them
+    -- In hybrid mode, don't override tracking button scripts -SexyMap's Buttons module handles them
     if not isHybridMode then
         --  Add right-click functionality to clear tracking
         minimapTrackingButton:SetScript("OnClick", function(self, button)
@@ -1390,7 +1395,7 @@ end
 
 -- Collect all minimap-related buttons from multiple parent frames
 -- Some addons (e.g. Carbonite) parent buttons to MinimapBackdrop instead of Minimap
--- NOTE: Do NOT scan MinimapCluster — it contains Blizzard UI buttons (zone text,
+-- NOTE: Do NOT scan MinimapCluster - it contains Blizzard UI buttons (zone text,
 -- zoom buttons, clock, etc.) that should never be skinned as addon icons.
 local BLIZZARD_MINIMAP_BUTTONS = {
     ['MinimapZoneTextButton'] = true,
@@ -1404,7 +1409,7 @@ local BLIZZARD_MINIMAP_BUTTONS = {
     ['GameTimeFrame'] = true,
     ['TimeManagerClockButton'] = true,
     ['MiniMapInstanceDifficulty'] = true,
-    ['MiniMapLFGFrame'] = true,   -- dungeon eye — has its own styling, skip skin
+    ['MiniMapLFGFrame'] = true,   -- dungeon eye -has its own styling, skip skin
     ['MiniMapVoiceChatFrame'] = true,
     ['MiniMapVoiceChatFrameIcon'] = true,
     ['DragonUI_MinimapSettingsButton'] = true,
@@ -1822,7 +1827,7 @@ local function RemoveBlizzardFrames()
         MiniMapWorldMapButton:SetScript("OnLeave", nil)
     end
 
-    -- In hybrid mode, don't hide tracking/mail elements — SexyMap's Buttons module manages them
+    -- In hybrid mode, don't hide tracking/mail elements -SexyMap's Buttons module manages them
     if not isHybridMode then
         local blizzFrames =
             {MiniMapTrackingIcon, MiniMapTrackingIconOverlay, MiniMapMailBorder, MiniMapTrackingButtonBorder}
@@ -1832,7 +1837,7 @@ local function RemoveBlizzardFrames()
         end
     end
 
-    -- Hide vanilla north indicator and compass — DragonUI doesn't use them
+    -- Hide vanilla north indicator and compass -DragonUI doesn't use them
     if MinimapNorthTag then MinimapNorthTag:Hide() end
     if MinimapCompassTexture then MinimapCompassTexture:Hide() end
 
@@ -1852,7 +1857,7 @@ MinimapModule.UpdateRotation = function()
         or MinimapModule._allowExternalBorderControl
 
     if not isHybridMode then
-        -- Always hide the vanilla MinimapBorder — DragonUI uses Minimap.Circle instead.
+        -- Always hide the vanilla MinimapBorder -DragonUI uses Minimap.Circle instead.
         -- Blizzard's Minimap_UpdateRotationSetting re-shows MinimapBorder when rotation
         -- is toggled off (e.g. closing Interface Options); our post-hook must counteract that.
         if MinimapBorder then
@@ -1899,7 +1904,7 @@ local allowedRaidDifficulty
 
 -- Update tracking icon using atlas textures
 function MinimapModule:UpdateTrackingIcon()
-    -- In hybrid mode, don't override tracking icon — SexyMap controls it
+    -- In hybrid mode, don't override tracking icon -SexyMap controls it
     local isHybridMode = self.sexyMapHybridMode
         or (addon.db and addon.db.profile and addon.db.profile.modules
             and addon.db.profile.modules.minimap
@@ -2082,13 +2087,13 @@ function MinimapModule:StoreOriginalSettings()
     end
 end
 
--- ── Dungeon Eye editor frame — separate from full minimap init so it works
+-- Dungeon Eye editor frame -separate from full minimap init so it works
 --    even when sexymap_mode == "sexymap" (micromenu styles LFG independently)
 function MinimapModule:RegisterLFGEditorFrame()
     if not MiniMapLFGFrame then return end
     if self.lfgWrapper then return end  -- already registered
 
-    -- Size wrapper to match the eye frame (hardcoded fallback: eye is ~52×56)
+    -- Size wrapper to match the eye frame (hardcoded fallback: eye is ~52Ã—56)
     local lfgW = (MiniMapLFGFrame:GetWidth()  > 0 and MiniMapLFGFrame:GetWidth())  or 52
     local lfgH = (MiniMapLFGFrame:GetHeight() > 0 and MiniMapLFGFrame:GetHeight()) or 56
     local lfgWrapper = addon.CreateUIFrame(lfgW, lfgH, "LFGFrame")
@@ -2162,7 +2167,7 @@ function MinimapModule:ApplyMinimapSystem()
     local minimapModuleConfig = addon.db and addon.db.profile and addon.db.profile.modules
         and addon.db.profile.modules.minimap
     if minimapModuleConfig and minimapModuleConfig.sexymap_mode == "sexymap" then
-        -- Still register the LFG editor frame — micromenu styles it independently
+        -- Still register the LFG editor frame -micromenu styles it independently
         self:RegisterLFGEditorFrame()
         return
     end
@@ -2316,6 +2321,10 @@ function MinimapModule:RestoreMinimapSystem()
     -- Cleanup hooks (tracked for debugging)
     CleanupSecureHooks()
 
+    if addon.MinimapDecorations and addon.MinimapDecorations.Restore then
+        addon.MinimapDecorations:Restore()
+    end
+
     self.applied = false
     self.isEnabled = false -- Legacy compatibility
     
@@ -2367,7 +2376,7 @@ function MinimapModule:InitializeMinimapSystem()
         module = self
     })
 
-    -- ── Dungeon Eye (MiniMapLFGFrame) — independent moveable frame ────────────
+    -- Dungeon Eye (MiniMapLFGFrame) -independent moveable frame
     self:RegisterLFGEditorFrame()
 
     local defaultX, defaultY = -7, 0
@@ -2430,7 +2439,7 @@ function MinimapModule:Initialize()
     local minimapModuleConfig = addon.db and addon.db.profile and addon.db.profile.modules
         and addon.db.profile.modules.minimap
     if minimapModuleConfig and minimapModuleConfig.sexymap_mode == "sexymap" then
-        -- Still register the LFG editor frame — the eye lives independently
+        -- Still register the LFG editor frame -the eye lives independently
         self:RegisterLFGEditorFrame()
         return
     end
@@ -2515,6 +2524,10 @@ function MinimapModule:UpdateSettings()
 
     --  REFRESH OTHER ELEMENTS
     self:UpdateTrackingIcon()
+
+    if addon.MinimapDecorations and addon.MinimapDecorations.Refresh then
+        addon.MinimapDecorations:Refresh()
+    end
 
 end
 
@@ -2661,7 +2674,7 @@ function MinimapModule:ApplyAllSettings()
         end
     end
 
-    --  APPLY ZONE TEXT FONT SIZE — skip in hybrid mode
+    --  APPLY ZONE TEXT FONT SIZE -skip in hybrid mode
     if not isHybridMode and settings.zonetext_font_size and MinimapZoneText then
         local font, _, flags = MinimapZoneText:GetFont()
         MinimapZoneText:SetFont(font, settings.zonetext_font_size, flags)
@@ -2734,6 +2747,10 @@ function addon:RefreshMinimap()
         -- Instant toggle for addon button fade
         UpdateAddonButtonFade()
         UpdateDragonUISettingsButton()
+
+        if addon.MinimapDecorations and addon.MinimapDecorations.Refresh then
+            addon.MinimapDecorations:Refresh()
+        end
     end
 end
 
@@ -2838,3 +2855,4 @@ initFrame:SetScript("OnEvent", function(self, event, addonName)
         self:UnregisterAllEvents()
     end
 end)
+

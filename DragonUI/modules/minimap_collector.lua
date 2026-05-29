@@ -37,8 +37,6 @@ local STYLE_CLASSIC   = "classic"
 local DEFAULT_ANGLE   = 315
 local ANIM_DURATION   = 0.14
 local ANIM_SHRINK     = 0.35
-local HYBRID_V2_CLASSIC_COLLECTOR_OFFSET_X = -12
-local HYBRID_V2_CLASSIC_COLLECTOR_OFFSET_Y = 0
 local HIGHLIGHT_TEX   = "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"
 local WHITE_TEX       = "Interface\\Buttons\\WHITE8X8"
 local BORDER_TEX      = "Interface\\AddOns\\DragonUI\\assets\\border_buttons.tga"
@@ -98,12 +96,6 @@ end
 local function GetStoredAngle()
     local c = GetCfg()
     return c and NormalizeAngle(c.settings_button_angle) or DEFAULT_ANGLE
-end
-
-local function IsSexyMapHybridV2Mode()
-    local a = deps.addon
-    local c = a and a.compatibility
-    return c and c.GetSexyMapMode and c:GetSexyMapMode() == "hybrid_v2"
 end
 
 local function SetStoredAngle(a)
@@ -560,11 +552,7 @@ local function PositionCollector()
     c:ClearAllPoints()
 
     if GetStyle() == STYLE_CLASSIC then
-        local offX, offY = -5, 0
-        if IsSexyMapHybridV2Mode() then
-            offX, offY = HYBRID_V2_CLASSIC_COLLECTOR_OFFSET_X, HYBRID_V2_CLASSIC_COLLECTOR_OFFSET_Y
-        end
-        c:SetPoint("RIGHT", Minimap, "LEFT", offX, offY)
+        c:SetPoint("RIGHT", Minimap, "LEFT", -5, 0)
         return
     end
 

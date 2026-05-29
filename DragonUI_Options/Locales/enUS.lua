@@ -719,6 +719,15 @@ L["Size of the player arrow on the minimap"] = true
 L["New Blip Style"] = true
 L["Use new DragonUI object icons on the minimap. When disabled, uses classic Blizzard icons."] = true
 L["Use newer-style minimap blip icons."] = true
+L["Animated Border"] = true
+L["Minimap Decorations"] = true
+L["Adds decorative animated texture layers around the DragonUI minimap."] = true
+L["Enable Animated Border"] = true
+L["Enable Minimap Decorations"] = true
+L["Animated Effects"] = true
+L["Rotate preset layers when the selected preset includes animation."] = true
+L["Opacity"] = true
+L["Hide DragonUI Border"] = true
 
 -- Time & Calendar
 L["Time & Calendar"] = true

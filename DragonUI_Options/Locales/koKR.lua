@@ -702,6 +702,15 @@ L["Size of the player arrow on the minimap"] = "미니맵 플레이어 화살표
 L["New Blip Style"] = "새로운 아이콘 스타일"
 L["Use new DragonUI object icons on the minimap. When disabled, uses classic Blizzard icons."] = "미니맵에 새로운 DragonUI 오브젝트 아이콘을 사용합니다. 비활성화 시 클래식 블리자드 아이콘을 사용합니다."
 L["Use newer-style minimap blip icons."] = "새로운 스타일의 미니맵 아이콘 사용"
+L["Animated Border"] = "애니메이션 테두리"
+L["Minimap Decorations"] = "미니맵 장식"
+L["Adds decorative animated texture layers around the DragonUI minimap."] = "DragonUI 미니맵 주변에 장식용 애니메이션 텍스처 레이어를 추가합니다."
+L["Enable Animated Border"] = "애니메이션 테두리 활성화"
+L["Enable Minimap Decorations"] = "미니맵 장식 활성화"
+L["Animated Effects"] = "애니메이션 효과"
+L["Rotate preset layers when the selected preset includes animation."] = "선택한 프리셋에 애니메이션이 포함되어 있으면 프리셋 레이어를 회전합니다."
+L["Opacity"] = "불투명도"
+L["Hide DragonUI Border"] = "DragonUI 테두리 숨기기"
 
 -- Time & Calendar
 L["Time & Calendar"] = "시간 및 달력"

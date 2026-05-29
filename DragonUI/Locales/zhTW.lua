@@ -50,6 +50,7 @@ L["Minimap Buttons Collector"] = "小地圖按鈕"
 L["Left-click to show or hide minimap addon buttons."] = "左鍵開啟小地圖插件按鈕。"
 L["Right-click to open DragonUI settings."] = "右鍵開啟 DragonUI 設定。"
 L["Drag to move"] = "拖曳以移動"
+L["Animated minimap border effects for DragonUI."] = "DragonUI 的小地圖動畫邊框效果。"
 
 -- 編輯模式標籤
 L["TargetCastbar"] = "目標施法條"

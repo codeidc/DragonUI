@@ -171,6 +171,7 @@ L["Quest Tracker"] = "Questverfolgung"
 
 -- Mover tooltip strings
 L["Drag to move"] = "Ziehen zum Verschieben"
+L["Animated minimap border effects for DragonUI."] = "Animierte Minimap-Rahmeneffekte für DragonUI."
 L["Right-click to reset"] = "Rechtsklick zum Zurücksetzen"
 L["Status Tooltip:"] = "Status-Tooltip:"
 L["Top"] = "Oben"

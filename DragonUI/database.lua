@@ -1,4 +1,4 @@
--- ============================================================================
+﻿-- ============================================================================
 -- DragonUI - Database Defaults
 -- Defines default profile values for AceDB-3.0. All configurable settings
 -- live here as the single source of truth for new/reset profiles.
@@ -417,6 +417,12 @@ local defaults = {
             settings_button_angle = 203,
             collector_enabled = true,
             collector_style = "dragonui",
+            animated_border_enabled = false,
+            animated_border_scale = 0.9,
+            animated_border_preset = "drg_preset_01",
+            animated_border_animations = true,
+            animated_border_opacity = 1,
+            animated_border_hide_dragonui_border = false,
             addon_button_skin = true,
             addon_button_fade = false
         },
@@ -711,6 +717,9 @@ local defaults = {
             minimap = {
                 enabled = true -- Apply DragonUI minimap enhancements including custom styling, positioning, tracking icons, and calendar
             },
+            MinimapDecorations = {
+                enabled = true -- Native animated minimap border decorations module
+            },
             buffs = {
                 enabled = true -- Enable DragonUI buff frame with custom styling, positioning, and toggle button functionality
             },
@@ -816,3 +825,4 @@ function addon:SetConfigValue(section, key, subkey, value)
         self.db.profile[section] = value;
     end
 end
+

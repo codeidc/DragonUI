@@ -1,4 +1,4 @@
---[[
+﻿--[[
 ================================================================================
 DragonUI Options Panel - Minimap Tab
 ================================================================================
@@ -27,6 +27,64 @@ local function RefreshMinimap()
     if addon.MinimapModule then
         addon.MinimapModule:UpdateSettings()
     end
+end
+
+local function RefreshAnimatedBorder()
+    if addon.MinimapDecorations and addon.MinimapDecorations.Refresh then
+        addon.MinimapDecorations:Refresh()
+    else
+        RefreshMinimap()
+    end
+end
+
+local AUTO_SCALE_BORDER_VISIBLE = 0.9
+local AUTO_SCALE_BORDER_HIDDEN = 1
+
+local function GetMinimapSettingsTable()
+    return addon.db and addon.db.profile and addon.db.profile.minimap
+end
+
+local function GetRecommendedAnimatedBorderScale(settings)
+    if settings and settings.animated_border_hide_dragonui_border == true then
+        return AUTO_SCALE_BORDER_HIDDEN
+    end
+    return AUTO_SCALE_BORDER_VISIBLE
+end
+
+local function ApplyAnimatedBorderAutoScaleIfNeeded()
+    local settings = GetMinimapSettingsTable()
+    if not settings or settings.animated_border_scale_auto == false then
+        return false, nil
+    end
+
+    local recommended = GetRecommendedAnimatedBorderScale(settings)
+    local changed = settings.animated_border_scale ~= recommended
+    settings.animated_border_scale = recommended
+    settings.animated_border_scale_auto = true
+    return changed, recommended
+end
+
+local function MarkAnimatedBorderScaleManual()
+    local settings = GetMinimapSettingsTable()
+    if settings then
+        settings.animated_border_scale_auto = false
+    end
+end
+
+local function GetAnimatedBorderPresets()
+    if addon.MinimapDecorations and addon.MinimapDecorations.GetPresetList then
+        return addon.MinimapDecorations:GetPresetList()
+    end
+
+    return {
+        ["drg_preset_01"] = "Azure Halo",
+        ["drg_preset_02"] = "Prismatic Facet",
+        ["drg_preset_03"] = "Solar Ember",
+        ["drg_preset_04"] = "Astral Lattice",
+        ["drg_preset_05"] = "Crimson Orbit",
+        ["drg_preset_06"] = "Verdant Bloom",
+        ["drg_preset_07"] = "Elemental Crown",
+    }
 end
 
 local function IsCollectorEnabled()
@@ -222,6 +280,88 @@ local function BuildMinimapTab(scroll)
     })
 
     -- ====================================================================
+    -- ANIMATED BORDER DECORATIONS
+    -- ====================================================================
+    local animatedBorder = C:AddSection(scroll, LO["Minimap Decorations"])
+    local animatedBorderWidgets = {}
+    local animatedBorderScaleSlider
+
+    local function IsAnimatedBorderEnabled()
+        return C:GetDBValue("minimap.animated_border_enabled") == true
+    end
+
+    local function UpdateAnimatedBorderSectionState()
+        local enabled = IsAnimatedBorderEnabled()
+        for _, widget in ipairs(animatedBorderWidgets) do
+            if widget and widget.SetDisabled then
+                widget:SetDisabled(not enabled)
+            end
+        end
+        SetSectionVisualState(animatedBorder, enabled)
+    end
+
+    C:AddDescription(animatedBorder,
+        LO["Adds decorative animated texture layers around the DragonUI minimap."])
+
+    C:AddToggle(animatedBorder, {
+        label = LO["Enable Minimap Decorations"],
+        dbPath = "minimap.animated_border_enabled",
+        callback = function()
+            UpdateAnimatedBorderSectionState()
+            RefreshAnimatedBorder()
+        end,
+    })
+
+    animatedBorderWidgets[#animatedBorderWidgets + 1] = C:AddDropdown(animatedBorder, {
+        label = LO["Preset"],
+        values = GetAnimatedBorderPresets(),
+        width = 260,
+        dbPath = "minimap.animated_border_preset",
+        callback = RefreshAnimatedBorder,
+    })
+
+    animatedBorderWidgets[#animatedBorderWidgets + 1] = C:AddToggle(animatedBorder, {
+        label = LO["Animated Effects"],
+        desc = LO["Rotate preset layers when the selected preset includes animation."],
+        dbPath = "minimap.animated_border_animations",
+        callback = RefreshAnimatedBorder,
+    })
+
+    animatedBorderWidgets[#animatedBorderWidgets + 1] = C:AddToggle(animatedBorder, {
+        label = LO["Hide DragonUI Border"],
+        dbPath = "minimap.animated_border_hide_dragonui_border",
+        callback = function()
+            local _, recommendedScale = ApplyAnimatedBorderAutoScaleIfNeeded()
+            if recommendedScale and animatedBorderScaleSlider and animatedBorderScaleSlider.SetValue then
+                animatedBorderScaleSlider:SetValue(recommendedScale)
+            end
+            RefreshAnimatedBorder()
+        end,
+    })
+
+    animatedBorderScaleSlider = C:AddSlider(animatedBorder, {
+        label = LO["Scale"],
+        dbPath = "minimap.animated_border_scale",
+        min = 0.5, max = 2, step = 0.01,
+        width = 200,
+        callback = function()
+            MarkAnimatedBorderScaleManual()
+            RefreshAnimatedBorder()
+        end,
+    })
+    animatedBorderWidgets[#animatedBorderWidgets + 1] = animatedBorderScaleSlider
+
+    animatedBorderWidgets[#animatedBorderWidgets + 1] = C:AddSlider(animatedBorder, {
+        label = LO["Opacity"],
+        dbPath = "minimap.animated_border_opacity",
+        min = 0, max = 1, step = 0.05,
+        width = 200,
+        callback = RefreshAnimatedBorder,
+    })
+
+    UpdateAnimatedBorderSectionState()
+
+    -- ====================================================================
     -- SEXYMAP COMPATIBILITY  (only when SexyMap is installed)
     -- ====================================================================
     if addon._sexyMapInstalled then
@@ -236,7 +376,6 @@ local function BuildMinimapTab(scroll)
                 ["sexymap"]  = L["SexyMap"],
                 ["dragonui"] = L["DragonUI"],
                 ["hybrid"]   = L["Hybrid"],
-                ["hybrid_v2"] = L["Hybrid"] .. " v2",
             },
             width = 220,
             getFunc = function()
@@ -254,7 +393,6 @@ local function BuildMinimapTab(scroll)
                 if val == "dragonui" then
                     DisableAddOn("SexyMap")
                 else
-                    -- "sexymap", "hybrid", and "hybrid_v2" all need SexyMap loaded
                     EnableAddOn("SexyMap")
                 end
                 StaticPopup_Show("DRAGONUI_SEXYMAP_MODE_RELOAD")
@@ -264,10 +402,11 @@ local function BuildMinimapTab(scroll)
         C:AddDescription(sm,
             "|cFF888888" .. L["SexyMap"] .. ":|r " .. L["Uses SexyMap for the minimap."] .. "\n" ..
             "|cFF888888" .. L["DragonUI"] .. ":|r " .. L["Uses DragonUI for the minimap."] .. "\n" ..
-            "|cFF888888" .. L["Hybrid"] .. ":|r " .. L["SexyMap visuals with DragonUI editor and positioning."] .. "\n" ..
-            "|cFF888888Hybrid v2:|r " .. L["SexyMap visuals with DragonUI editor and positioning."])
+            "|cFF888888" .. L["Hybrid"] .. ":|r " .. L["SexyMap visuals with DragonUI editor and positioning."])
     end
 end
 
 -- Register the tab
 Panel:RegisterTab("minimap", LO["Minimap"], BuildMinimapTab, 8)
+
+

@@ -1,4 +1,4 @@
---[[
+﻿--[[
 ================================================================================
 DragonUI - English Locale (Default)
 ================================================================================
@@ -121,6 +121,8 @@ L["DragonUI"] = true
 -- ============================================================================
 
 L["DragonUI: Minimap module restored to Blizzard defaults"] = true
+L["Minimap Decorations"] = true
+L["Native animated minimap decoration effects for DragonUI."] = true
 L["Minimap Buttons"] = true
 L["Minimap Buttons Collector"] = "Minimap Buttons"
 L["Left-click to show or hide minimap addon buttons."] = "Left-Click to open minimap buttons."
@@ -172,6 +174,7 @@ L["Quest Tracker"] = true
 
 -- Mover tooltip strings
 L["Drag to move"] = true
+L["Animated minimap border effects for DragonUI."] = true
 L["Right-click to reset"] = true
 L["Status Tooltip:"] = true
 L["Top"] = true

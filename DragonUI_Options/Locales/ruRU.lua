@@ -694,6 +694,15 @@ L["Size of the player arrow on the minimap"] = "Размер стрелки иг
 L["New Blip Style"] = "Новый стиль точек"
 L["Use new DragonUI object icons on the minimap. When disabled, uses classic Blizzard icons."] = "Использовать новые значки объектов DragonUI на миникарте. При отключении используются классические значки Blizzard."
 L["Use newer-style minimap blip icons."] = "Использовать значки миникарты нового стиля."
+L["Animated Border"] = "Анимированная рамка"
+L["Minimap Decorations"] = "Декорации миникарты"
+L["Adds decorative animated texture layers around the DragonUI minimap."] = "Добавляет декоративные анимированные слои текстур вокруг миникарты DragonUI."
+L["Enable Animated Border"] = "Включить анимированную рамку"
+L["Enable Minimap Decorations"] = "Включить декорации миникарты"
+L["Animated Effects"] = "Анимированные эффекты"
+L["Rotate preset layers when the selected preset includes animation."] = "Вращает слои шаблона, если выбранный шаблон содержит анимацию."
+L["Opacity"] = "Непрозрачность"
+L["Hide DragonUI Border"] = "Скрыть рамку DragonUI"
 
 -- Time & Calendar
 L["Time & Calendar"] = "Время и календарь"

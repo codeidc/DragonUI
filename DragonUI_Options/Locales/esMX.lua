@@ -698,6 +698,15 @@ L["Size of the player arrow on the minimap"] = "Tamaño de la flecha del jugador
 L["New Blip Style"] = "Nuevo Estilo de Puntos"
 L["Use new DragonUI object icons on the minimap. When disabled, uses classic Blizzard icons."] = "Usar nuevos iconos de objetos de DragonUI en el minimapa. Al desactivar, usa los iconos clásicos de Blizzard."
 L["Use newer-style minimap blip icons."] = "Usar iconos de puntos del minimapa de estilo más nuevo."
+L["Animated Border"] = "Borde Animado"
+L["Minimap Decorations"] = "Decoraciones del minimapa"
+L["Adds decorative animated texture layers around the DragonUI minimap."] = "Añade capas decorativas animadas alrededor del minimapa de DragonUI."
+L["Enable Animated Border"] = "Activar Borde Animado"
+L["Enable Minimap Decorations"] = "Activar decoraciones del minimapa"
+L["Animated Effects"] = "Efectos Animados"
+L["Rotate preset layers when the selected preset includes animation."] = "Rota las capas del preajuste cuando el preajuste seleccionado incluye animación."
+L["Opacity"] = "Opacidad"
+L["Hide DragonUI Border"] = "Ocultar borde de DragonUI"
 
 -- Time & Calendar
 L["Time & Calendar"] = "Hora y Calendario"

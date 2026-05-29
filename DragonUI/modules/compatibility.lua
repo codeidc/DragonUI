@@ -753,9 +753,6 @@ local function UpdateCollectorToggleHoverVisibility()
     end
 end
 
-local HYBRID_V2_COLLECTOR_ARROW_OFFSET_X = 9
-local HYBRID_V2_COLLECTOR_ARROW_OFFSET_Y = -2
-
 function compatibility:ApplySexyMapCollectorToggleVisibilityFix(button)
     if not button then
         return false
@@ -768,12 +765,6 @@ function compatibility:ApplySexyMapCollectorToggleVisibilityFix(button)
 
     button.DragonUI_HybridCollectorHoverManaged = true
     self._collectorToggleButton = button
-
-    -- Hybrid v2: adjust collector arrow X position without affecting normal hybrid.
-    if self:GetSexyMapMode() == "hybrid_v2" and button.DragonUI_LastStyle == "classic" and Minimap then
-        button:ClearAllPoints()
-        button:SetPoint("RIGHT", Minimap, "LEFT", HYBRID_V2_COLLECTOR_ARROW_OFFSET_X, HYBRID_V2_COLLECTOR_ARROW_OFFSET_Y)
-    end
 
     local sexyMapObj = _G["SexyMap"]
     if sexyMapObj and sexyMapObj.RegisterHoverButton then
@@ -793,6 +784,11 @@ end
 
 -- Internal: Apply the chosen SexyMap compatibility mode (called on login with saved choice)
 behaviors._ApplySexyMapMode = function(mode)
+    if mode == "hybrid_v2" then
+        behaviors._SaveSexyMapMode("dragonui")
+        mode = "dragonui"
+    end
+
     if mode == "sexymap" then
         -- ================================================================
         -- USE SEXYMAP ONLY: DragonUI minimap module skips initialization
@@ -815,7 +811,7 @@ behaviors._ApplySexyMapMode = function(mode)
         -- ================================================================
         DisableAddOn("SexyMap")
 
-    elseif mode == "hybrid" or mode == "hybrid_v2" then
+    elseif mode == "hybrid" then
         -- ================================================================
         -- HYBRID MODE: Mark module for hybrid behavior
         -- The minimap module reads sexymap_mode from DB during init
@@ -851,101 +847,12 @@ behaviors._WaitAndAdjustHybrid = function()
     end
 end
 
-local function IsSexyMapHybridV2Mode()
-    return compatibility:GetSexyMapMode() == "hybrid_v2"
-end
-
-local HYBRID_V2_MAP_SCALE = 1
-local HYBRID_V2_BORDER_SIZE = 220
-local HYBRID_V2_ZONE_TEXT_OFFSET_X = 0
-local HYBRID_V2_ZONE_TEXT_OFFSET_Y = 33
-
-local function RestoreHybridV2VisualTweaks()
-    if Minimap and Minimap.DragonUI_HybridV2OriginalScale then
-        Minimap:SetScale(Minimap.DragonUI_HybridV2OriginalScale)
-        Minimap.DragonUI_HybridV2OriginalScale = nil
-    end
-
-    if Minimap and Minimap.DragonUI_HybridV2BorderFrame then
-        Minimap.DragonUI_HybridV2BorderFrame:Hide()
-    elseif Minimap and Minimap.DragonUI_HybridV2Border then
-        Minimap.DragonUI_HybridV2Border:Hide()
-    end
-end
-
-local function ApplyHybridV2VisualTweaks()
-    if not Minimap then
-        return
-    end
-
-    -- Keep a small, mode-local shrink so v2 looks distinct from regular hybrid.
-    if not Minimap.DragonUI_HybridV2OriginalScale then
-        Minimap.DragonUI_HybridV2OriginalScale = Minimap:GetScale() or 1
-    end
-    Minimap:SetScale(Minimap.DragonUI_HybridV2OriginalScale * HYBRID_V2_MAP_SCALE)
-
-    if not Minimap.DragonUI_HybridV2BorderFrame then
-        Minimap.DragonUI_HybridV2BorderFrame = CreateFrame("Frame", nil, Minimap)
-        Minimap.DragonUI_HybridV2BorderFrame:SetAllPoints(Minimap)
-    end
-
-    local borderFrame = Minimap.DragonUI_HybridV2BorderFrame
-    borderFrame:SetFrameStrata(Minimap:GetFrameStrata())
-    borderFrame:SetFrameLevel(Minimap:GetFrameLevel() + 1)
-
-    if not Minimap.DragonUI_HybridV2Border then
-        Minimap.DragonUI_HybridV2Border = borderFrame:CreateTexture(nil, "ARTWORK")
-    end
-
-    local borderTexture = Minimap.DragonUI_HybridV2Border
-    borderTexture:SetParent(borderFrame)
-    borderTexture:SetDrawLayer("ARTWORK", 0)
-    borderTexture:ClearAllPoints()
-
-    local mapScale = Minimap:GetScale() or 1
-    if mapScale <= 0 then
-        mapScale = 1
-    end
-    local compensatedBorderSize = HYBRID_V2_BORDER_SIZE / mapScale
-
-    -- Prefer atlas border when available; fallback to dedicated border texture.
-    local usedAtlas = addon.minimap_SetAtlas and addon.minimap_SetAtlas(borderTexture, "Minimap-Border")
-    if usedAtlas then
-        borderTexture:SetSize(compensatedBorderSize, compensatedBorderSize)
-    else
-        borderTexture:SetTexture("Interface\\AddOns\\DragonUI\\Textures\\Minimap\\MinimapBorder.blp")
-        borderTexture:SetTexCoord(0, 1, 0, 1)
-        borderTexture:SetSize(compensatedBorderSize, compensatedBorderSize)
-    end
-
-    borderTexture:SetPoint("CENTER", Minimap, "CENTER", 0, 0)
-
-    borderFrame:Show()
-    borderTexture:Show()
-end
-
-local function ApplyHybridV2ZoneTextTweaks()
-    if not MinimapZoneTextButton or not Minimap then
-        return
-    end
-
-    MinimapZoneTextButton:ClearAllPoints()
-    MinimapZoneTextButton:SetPoint("TOP", Minimap, "TOP", HYBRID_V2_ZONE_TEXT_OFFSET_X, HYBRID_V2_ZONE_TEXT_OFFSET_Y)
-
-    if MinimapZoneText then
-        MinimapZoneText:SetAllPoints(MinimapZoneTextButton)
-        MinimapZoneText:SetJustifyH("CENTER")
-    end
-end
-
 -- Internal: Adjust DragonUI minimap for hybrid coexistence with SexyMap
 -- In hybrid mode:
 --   SexyMap controls: borders, shapes/mask, fading, button orbit/visibility
 --   DragonUI controls: positioning (editor mode), tracking icons, calendar,
 --                      instance difficulty, POI textures, blip textures
 behaviors._AdjustForHybridMode = function()
-    local isHybridV2 = IsSexyMapHybridV2Mode()
-
     -- 1. Hide DragonUI's custom border top (SexyMap hides the default and uses its own)
     if MinimapBorderTop then
         MinimapBorderTop:Hide()
@@ -970,12 +877,6 @@ behaviors._AdjustForHybridMode = function()
         Minimap.Circle:Hide()
     end
 
-    if isHybridV2 then
-        ApplyHybridV2VisualTweaks()
-    else
-        RestoreHybridV2VisualTweaks()
-    end
-
     -- 5. Fix zone text: Let SexyMap's ZoneText module handle styling/position
     --    but preserve DragonUI's click-to-open-map functionality
     if MinimapZoneTextButton then
@@ -993,19 +894,6 @@ behaviors._AdjustForHybridMode = function()
                     end
                 end
             end)
-
-            if isHybridV2 then
-                ApplyHybridV2ZoneTextTweaks()
-
-                if sexyMapZoneText.Apply and not sexyMapZoneText.DragonUI_HybridV2ZoneHooked then
-                    sexyMapZoneText.DragonUI_HybridV2ZoneHooked = true
-                    hooksecurefunc(sexyMapZoneText, "Apply", function()
-                        if IsSexyMapHybridV2Mode() then
-                            ApplyHybridV2ZoneTextTweaks()
-                        end
-                    end)
-                end
-            end
         end
     end
 
@@ -1069,7 +957,7 @@ function compatibility:IsSexyMapHybridMode()
         return false
     end
     local mode = addon.db.profile.modules.minimap.sexymap_mode
-    return mode == "hybrid" or mode == "hybrid_v2"
+    return mode == "hybrid"
 end
 
 -- Public API: Get current SexyMap mode
@@ -1410,7 +1298,7 @@ local function InitializeEvents()
                         local oldMode = minimapCfg.sexymap_mode
                         minimapCfg.sexymap_mode = nil
                         -- Restore addon_button_skin if sexymap/hybrid mode had disabled it
-                        if (oldMode == "hybrid" or oldMode == "hybrid_v2" or oldMode == "sexymap") and addon.db.profile.minimap then
+                        if oldMode and oldMode ~= "dragonui" and addon.db.profile.minimap then
                             addon.db.profile.minimap.addon_button_skin = true
                         end
                     end
@@ -1595,7 +1483,6 @@ if sexyMapInstalled then
                     ["sexymap"]  = L["SexyMap"],
                     ["dragonui"] = L["DragonUI"],
                     ["hybrid"]   = L["Hybrid"],
-                    ["hybrid_v2"] = "Hybrid v2",
                 },
                 get = function()
                     local cfg = addon.db and addon.db.profile and addon.db.profile.modules
@@ -1616,8 +1503,7 @@ if sexyMapInstalled then
                 name = function()
                     return "\n|cFF888888" .. L["SexyMap"] .. ":|r " .. L["Uses SexyMap for the minimap."] .. "\n" ..
                            "|cFF888888" .. L["DragonUI"] .. ":|r " .. L["Uses DragonUI for the minimap."] .. "\n" ..
-                           "|cFF888888" .. L["Hybrid"] .. ":|r " .. L["SexyMap visuals with DragonUI editor and positioning."] .. "\n" ..
-                           "|cFF888888Hybrid v2:|r " .. L["SexyMap visuals with DragonUI editor and positioning."]
+                              "|cFF888888" .. L["Hybrid"] .. ":|r " .. L["SexyMap visuals with DragonUI editor and positioning."]
                 end,
                 order = 3
             }

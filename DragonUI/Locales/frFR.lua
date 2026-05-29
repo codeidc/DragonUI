@@ -50,6 +50,7 @@ L["Minimap Buttons Collector"] = "Boutons de minicarte"
 L["Left-click to show or hide minimap addon buttons."] = "Clic gauche pour ouvrir les boutons d'addon de la minicarte."
 L["Right-click to open DragonUI settings."] = "Clic droit pour ouvrir les parametres de DragonUI."
 L["Drag to move"] = "Glisser pour deplacer"
+L["Animated minimap border effects for DragonUI."] = "Effets de bordure animée de mini-carte pour DragonUI."
 
 -- Editor mode labels
 L["TargetCastbar"] = "Barre d'incantation de la cible"

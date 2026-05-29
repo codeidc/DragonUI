@@ -698,6 +698,15 @@ L["Size of the player arrow on the minimap"] = "Größe des Spielerpfeils auf de
 L["New Blip Style"] = "Neuer Blip-Stil"
 L["Use new DragonUI object icons on the minimap. When disabled, uses classic Blizzard icons."] = "Neue DragonUI-Objekticons auf der Minikarte verwenden. Wenn deaktiviert, werden klassische Blizzard-Icons genutzt."
 L["Use newer-style minimap blip icons."] = "Minimap-Blip-Icons im neueren Stil verwenden."
+L["Animated Border"] = "Animierter Rahmen"
+L["Minimap Decorations"] = "Minimap-Dekorationen"
+L["Adds decorative animated texture layers around the DragonUI minimap."] = "Fügt dekorative animierte Texturschichten um die DragonUI-Minimap hinzu."
+L["Enable Animated Border"] = "Animierten Rahmen aktivieren"
+L["Enable Minimap Decorations"] = "Minimap-Dekorationen aktivieren"
+L["Animated Effects"] = "Animierte Effekte"
+L["Rotate preset layers when the selected preset includes animation."] = "Dreht Vorlagenebenen, wenn die ausgewählte Vorlage Animationen enthält."
+L["Opacity"] = "Deckkraft"
+L["Hide DragonUI Border"] = "DragonUI-Rahmen ausblenden"
 
 -- Time & Calendar
 L["Time & Calendar"] = "Uhrzeit & Kalender"
