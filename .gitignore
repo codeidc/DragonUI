@@ -1,34 +1,16 @@
+# macOS
+.DS_Store
+
+# Secrets
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
 # Backup files
 *.bak
 *.lua.bak
 *.bak2
-
-# macOS
-.DS_Store
-
-# VSCode
-.vscode/
-
-.github/
-
-.dist/
-
-Reference/
-docs/
-mcp/
-.venv/
-.env/
-memories/
-presets/
-
-# Local test/debug scripts
-test_*.lua
-debug_*.lua
-
-# Internal dev tools
-scripts/
-
-# Node/Python temp files
-__pycache__/
-*.pyc
-*.pyo
