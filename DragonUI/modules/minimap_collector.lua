@@ -46,6 +46,12 @@ local INCLUDE_BUTTONS = {
     "WIM_IconFrame",
     "CTMod2_MinimapButton",
     "PoisonerMinimapButton",
+    "AtlasButton",
+}
+
+-- Legacy addons parent the launcher Button inside a Frame wrapper on Minimap.
+local BUTTON_WRAPPER_FRAMES = {
+    AtlasButton = "AtlasButtonFrame",
 }
 
 local EXCLUDED_BUTTONS = {
@@ -393,6 +399,41 @@ end
 -- ----------------------------------------------------------------------------
 -- Origin tracking (single subtable instead of many keys)
 -- ----------------------------------------------------------------------------
+local function RememberWrapperFrame(btn)
+    local btnName = btn and btn.GetName and btn:GetName()
+    if not btnName then return end
+
+    local wrapperName = BUTTON_WRAPPER_FRAMES[btnName]
+    if not wrapperName then return end
+
+    local wrapper = _G[wrapperName]
+    if not wrapper then return end
+
+    btn.DragonUI_CollectorWrapper = wrapper
+    btn.DragonUI_CollectorWrapperShown = wrapper:IsShown()
+end
+
+local function HideWrapperFrame(btn)
+    local wrapper = btn and btn.DragonUI_CollectorWrapper
+    if wrapper then
+        wrapper:Hide()
+    end
+end
+
+local function RestoreWrapperFrame(btn)
+    local wrapper = btn and btn.DragonUI_CollectorWrapper
+    if not wrapper then return end
+
+    if btn.DragonUI_CollectorWrapperShown then
+        wrapper:Show()
+    else
+        wrapper:Hide()
+    end
+
+    btn.DragonUI_CollectorWrapper = nil
+    btn.DragonUI_CollectorWrapperShown = nil
+end
+
 local function RememberOrigin(btn)
     if btn.DragonUI_CollectorOrigin then return end
     local pts = {}
@@ -408,11 +449,13 @@ local function RememberOrigin(btn)
         w = w, h = h,
         points = pts,
     }
+    RememberWrapperFrame(btn)
 end
 
 local function RestoreOrigin(btn)
     local o = btn.DragonUI_CollectorOrigin
     if not o then return end
+    RestoreWrapperFrame(btn)
     btn.DragonUI_CollectorManaged = nil
     btn.DragonUI_ForceCollectorAlpha = nil
     btn.DragonUI_CollectorIndex = nil
@@ -827,6 +870,7 @@ local function PlaceCollectedButton(btn, c, index)
     end
 
     PositionCollectedButton(btn, c, index, skin)
+    HideWrapperFrame(btn)
 
     if c.isOpen then btn:Show() end
 end

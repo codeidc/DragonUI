@@ -158,12 +158,13 @@ local function IsQuestMinimapPin(button)
         end
     end
 
-    -- pfQuest/Questie minimap pins are nameless Buttons parented
+    -- pfQuest/Questie/TomTom minimap pins are nameless Buttons parented
     -- directly to Minimap, so name/parent/child checks all miss them.
-    -- Detect by inspecting region textures: quest helper pins use textures
-    -- shipped from their own AddOn folder (e.g. "Interface\\AddOns\\pfQuest\\...",
-    -- "Interface\\AddOns\\Questie\\..."). This is a non-destructive read-only
-    -- check that runs once per button during the skin scan.
+    -- Detect by inspecting region textures: pins use textures shipped from
+    -- their own AddOn folder (e.g. "Interface\\AddOns\\pfQuest\\...",
+    -- "Interface\\AddOns\\Questie\\...", "Interface\\AddOns\\TomTom\\...").
+    -- This is a non-destructive read-only check that runs once per button
+    -- during the skin scan.
     if button.GetNumRegions then
         for i = 1, button:GetNumRegions() do
             local region = select(i, button:GetRegions())
@@ -174,7 +175,8 @@ local function IsQuestMinimapPin(button)
                     if lower:find("pfquest", 1, true)
                        or lower:find("pfmap", 1, true)
                        or lower:find("pfminimap", 1, true)
-                       or lower:find("questie", 1, true) then
+                       or lower:find("questie", 1, true)
+                       or lower:find("\\tomtom\\", 1, true) then
                         button.DragonUI_IsQuestPin = true
                         return true
                     end
@@ -1418,29 +1420,50 @@ local BLIZZARD_MINIMAP_BUTTONS = {
 local function GetAllMinimapButtons()
     local buttons = {}
     local seen = {}
-    
-    -- Helper to scan children of a frame for buttons
-    local function ScanFrame(parentFrame)
-        if not parentFrame then return end
+
+    local function TryAddButton(button)
+        if not button or seen[button] or button:GetObjectType() ~= "Button" then
+            return
+        end
+
+        local buttonName = button:GetName()
+        if buttonName and BLIZZARD_MINIMAP_BUTTONS[buttonName] then
+            return
+        end
+        if IsQuestMinimapPin(button) then
+            return
+        end
+
+        seen[button] = true
+        table.insert(buttons, button)
+    end
+
+    -- Scan direct Button children, plus one level of Frame wrappers (e.g. AtlasButtonFrame > AtlasButton).
+    local function ScanFrame(parentFrame, nested)
+        if not parentFrame then
+            return
+        end
+
         local children = { parentFrame:GetChildren() }
         for i = 1, #children do
             local child = children[i]
-            if child and child:GetObjectType() == "Button" and not seen[child] then
-                -- Skip known Blizzard minimap buttons to avoid stray borders
+            if not child then
+            elseif child:GetObjectType() == "Button" then
+                TryAddButton(child)
+            elseif not nested and child:GetObjectType() == "Frame" then
                 local childName = child:GetName()
-                if not (childName and BLIZZARD_MINIMAP_BUTTONS[childName]) and not IsQuestMinimapPin(child) then
-                    seen[child] = true
-                    table.insert(buttons, child)
+                if not (childName and BLIZZARD_MINIMAP_BUTTONS[childName]) then
+                    ScanFrame(child, true)
                 end
             end
         end
     end
-    
+
     -- Scan Minimap and MinimapBackdrop only
     -- MinimapCluster is excluded: it contains Blizzard frames (zone text, zoom, etc.)
-    ScanFrame(Minimap)
-    ScanFrame(MinimapBackdrop)
-    
+    ScanFrame(Minimap, false)
+    ScanFrame(MinimapBackdrop, false)
+
     return buttons
 end
 
