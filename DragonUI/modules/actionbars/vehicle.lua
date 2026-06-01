@@ -786,8 +786,17 @@ local function SetupBonusBarVehicle()
     ]])
 
     pUiMainBar:SetAttribute('_onstate-page', [[
-        for i, button in ipairs(buttons) do
-            button:SetAttribute('actionpage', tonumber(newstate))
+        local page = tonumber(newstate)
+        if HasTempShapeshiftActionBar and HasTempShapeshiftActionBar() then
+            local tempPage = GetTempShapeshiftBarIndex and GetTempShapeshiftBarIndex()
+            if tempPage and tempPage > 0 then
+                page = tempPage
+            end
+        end
+        if page then
+            for i, button in ipairs(buttons) do
+                button:SetAttribute('actionpage', page)
+            end
         end
     ]])
 
