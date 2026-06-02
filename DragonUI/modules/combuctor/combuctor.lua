@@ -36,6 +36,8 @@ local SetPortraitTexture = SetPortraitTexture
 local IsAltKeyDown = IsAltKeyDown
 local PlaySound = PlaySound
 local UnitName = UnitName
+local GetRealmName = GetRealmName
+local time = time
 local NUM_BAG_SLOTS = NUM_BAG_SLOTS
 local NUM_BANKBAGSLOTS = NUM_BANKBAGSLOTS
 local KEYRING_CONTAINER = KEYRING_CONTAINER
@@ -531,6 +533,15 @@ do
         elseif event == "BAG_UPDATE" then
             local bag = ...
             updateBag(bag)
+            if AtBank and mod("BankCache"):IsBankStorage(bag) then
+                if bag == BANK_CONTAINER then
+                    for slot = 1, NUM_BANKGENERIC_SLOTS do
+                        mod("BankCache"):SaveBankSlot(slot)
+                    end
+                else
+                    mod("BankCache"):ScanBankBag(bag)
+                end
+            end
         elseif event == "BAG_UPDATE_COOLDOWN" then
             forEachBag(updateCooldowns)
         elseif event == "PLAYERBANKSLOTS_CHANGED" then
@@ -541,12 +552,18 @@ do
             else
                 updateBag(BANK_CONTAINER)
             end
+            mod("BankCache"):OnBankSlotsChanged(slotId)
+        elseif event == "PLAYERBANKBAGSLOTS_CHANGED" then
+            if AtBank then
+                mod("BankCache"):ScanBankAll()
+            end
         end
     end)
     eventFrame:RegisterEvent("PLAYER_LOGIN")
     eventFrame:RegisterEvent("BAG_UPDATE")
     eventFrame:RegisterEvent("BAG_UPDATE_COOLDOWN")
     eventFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
+    eventFrame:RegisterEvent("PLAYERBANKBAGSLOTS_CHANGED")
 
     -- Bank detection (Show/Hide pattern, matching KPack reference)
     local bankWatcher = CreateFrame("Frame")
@@ -556,10 +573,12 @@ do
         AtBank = true
         updateBag(BANK_CONTAINER)
         forEachBag(updateBag)
+        mod("BankCache"):ScanBankAll()
         sendMessage("BANK_OPENED")
         -- After first open, simplify subsequent handler
         self:SetScript("OnShow", function(self)
             AtBank = true
+            mod("BankCache"):ScanBankAll()
             sendMessage("BANK_OPENED")
         end)
     end)
@@ -578,6 +597,135 @@ do
     end)
     bankWatcher:RegisterEvent("BANKFRAME_OPENED")
     bankWatcher:RegisterEvent("BANKFRAME_CLOSED")
+end
+
+-- ============================================================================
+-- BANK CACHE (offline bank view)
+-- ============================================================================
+
+do
+    local BankCache = mod:NewModule("BankCache")
+
+    local function getCharKey()
+        return (GetRealmName() or "") .. "|" .. playerName
+    end
+
+    local function getCharCache()
+        if not addon.db or not addon.db.global then return end
+        local root = addon.db.global.combuctorCache
+        if not root then
+            addon.db.global.combuctorCache = {}
+            root = addon.db.global.combuctorCache
+        end
+        local key = getCharKey()
+        if not root[key] then
+            root[key] = { bank = { slots = {} }, bankBags = {} }
+        end
+        return root[key]
+    end
+
+    function BankCache:IsBankStorage(bag)
+        return bag == BANK_CONTAINER or (bag > NUM_BAG_SLOTS and bag <= NUM_BAG_SLOTS + NUM_BANKBAGSLOTS)
+    end
+
+    function BankCache:SaveBankSlot(slot)
+        if not mod("InventoryEvents"):AtBank() then return end
+        local cache = getCharCache()
+        if not cache then return end
+        cache.bank.slots = cache.bank.slots or {}
+        local _, count, _, _, _, _, link = GetContainerItemInfo(BANK_CONTAINER, slot)
+        if link then
+            cache.bank.slots[slot] = { link = link, count = count }
+        else
+            cache.bank.slots[slot] = nil
+        end
+        cache.bank.lastScan = time()
+    end
+
+    function BankCache:ScanBankBag(bag)
+        if not mod("InventoryEvents"):AtBank() then return end
+        local cache = getCharCache()
+        if not cache then return end
+
+        local invSlot = BankButtonIDToInvSlotID(bag, 1)
+        if not invSlot or not GetInventoryItemLink("player", invSlot) then
+            cache.bankBags[bag] = nil
+            return
+        end
+
+        local size = GetContainerNumSlots(bag)
+        local bagCache = { size = size, slots = {} }
+        for slot = 1, size do
+            local _, count, _, _, _, _, link = GetContainerItemInfo(bag, slot)
+            if link then
+                bagCache.slots[slot] = { link = link, count = count }
+            end
+        end
+        cache.bankBags[bag] = bagCache
+    end
+
+    function BankCache:ScanBankAll()
+        if not mod("InventoryEvents"):AtBank() then return end
+        local cache = getCharCache()
+        if not cache then return end
+
+        cache.bank.slots = cache.bank.slots or {}
+        for slot = 1, NUM_BANKGENERIC_SLOTS do
+            self:SaveBankSlot(slot)
+        end
+
+        for bag = NUM_BAG_SLOTS + 1, NUM_BAG_SLOTS + NUM_BANKBAGSLOTS do
+            self:ScanBankBag(bag)
+        end
+    end
+
+    function BankCache:OnBankSlotsChanged(slotId)
+        if not mod("InventoryEvents"):AtBank() then return end
+        if not slotId or slotId <= NUM_BANKGENERIC_SLOTS then
+            if slotId then
+                self:SaveBankSlot(slotId)
+            else
+                for slot = 1, NUM_BANKGENERIC_SLOTS do
+                    self:SaveBankSlot(slot)
+                end
+            end
+        else
+            local bagId = (slotId - NUM_BANKGENERIC_SLOTS) + NUM_BAG_SLOTS
+            self:ScanBankBag(bagId)
+        end
+    end
+
+    function BankCache:GetCachedItem(bag, slot)
+        local cache = getCharCache()
+        if not cache then return end
+
+        if bag == BANK_CONTAINER then
+            local entry = cache.bank.slots and cache.bank.slots[slot]
+            if entry and entry.link then
+                return entry.link, entry.count
+            end
+            return
+        end
+
+        local bagCache = cache.bankBags[bag]
+        if bagCache and bagCache.slots then
+            local entry = bagCache.slots[slot]
+            if entry and entry.link then
+                return entry.link, entry.count
+            end
+        end
+    end
+
+    function BankCache:GetCachedBagSize(bag)
+        local cache = getCharCache()
+        if not cache then return end
+        local bagCache = cache.bankBags[bag]
+        if bagCache and bagCache.size and bagCache.size > 0 then
+            return bagCache.size
+        end
+    end
+
+    mod.BankCache = BankCache
 end
 
 -- ============================================================================
@@ -645,6 +793,11 @@ do
                 return GetKeyRingSize()
             elseif bag == BANK_CONTAINER then
                 return NUM_BANKGENERIC_SLOTS
+            elseif self:IsBankBag(bag) and not mod("InventoryEvents"):AtBank() then
+                local cachedSize = mod("BankCache"):GetCachedBagSize(bag)
+                if cachedSize then
+                    return cachedSize
+                end
             end
             return GetContainerNumSlots(bag)
         end
@@ -715,14 +868,27 @@ do
     local ItemSlotInfo = mod:NewModule("ItemSlotInfo")
 
     function ItemSlotInfo:GetItemInfo(player, bag, slot)
-        if player == playerName then
-            local texture, count, locked, quality, readable, lootable, link = GetContainerItemInfo(bag, slot)
-            if link and quality and quality < 0 then
-                quality = select(3, GetItemInfo(link))
-            end
-            return texture, count, locked, quality, readable, lootable, link
+        if player ~= playerName then
+            return nil
         end
-        return nil
+
+        local BagSlotInfo = mod.BagSlotInfo
+        local isBankStorage = BagSlotInfo:IsBank(bag) or BagSlotInfo:IsBankBag(bag)
+        if isBankStorage and not mod("InventoryEvents"):AtBank() then
+            local link, count = mod("BankCache"):GetCachedItem(bag, slot)
+            if not link then
+                return nil
+            end
+            local texture = GetItemIcon(link)
+            local quality = select(3, GetItemInfo(link))
+            return texture, count, false, quality, false, false, link
+        end
+
+        local texture, count, locked, quality, readable, lootable, link = GetContainerItemInfo(bag, slot)
+        if link and quality and quality < 0 then
+            quality = select(3, GetItemInfo(link))
+        end
+        return texture, count, locked, quality, readable, lootable, link
     end
 
     function ItemSlotInfo:IsLocked(player, bag, slot)

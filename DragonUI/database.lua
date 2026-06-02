@@ -10,6 +10,9 @@ local addon = select(2, ...);
 local _arialn = addon.Fonts and addon.Fonts.ARIALN or "Fonts\\ARIALN.TTF"
 
 local defaults = {
+    global = {
+        combuctorCache = {} -- Per-character bank snapshot (realm|name keys); used by combuctor module
+    },
     profile = {
         version = 1,
         -- Widgets
@@ -781,7 +784,8 @@ local defaults = {
 
 -- Temporary profile placeholder (replaced by AceDB in core.lua:OnInitialize)
 addon.db = {
-    profile = addon.defaults and addon.defaults.profile or {}
+    profile = addon.defaults and addon.defaults.profile or {},
+    global = addon.defaults and addon.defaults.global or {}
 };
 
 -- Recursive table copy (preserves existing keys in target)
@@ -801,6 +805,9 @@ end
 -- Populate temporary profile with defaults
 if defaults and defaults.profile then
     deepCopy(defaults.profile, addon.db.profile);
+end
+if defaults and defaults.global then
+    deepCopy(defaults.global, addon.db.global);
 end
 
 -- Export defaults for use in core.lua
