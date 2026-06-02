@@ -71,6 +71,9 @@ function UF.SmallFrame.Create(opts)
     local pendingWidgetPositionUpdate = false
     local pendingVisibilityUpdate = false
 
+    -- Visibility helpers (assigned below; declared early for hooks + mutual recursion)
+    local ReconcileVisibility, RequestVisibilityRefresh, RequestVisibilityRefreshFromEvent
+
 
     -- ========================================================================
     -- CONFIG
@@ -423,15 +426,22 @@ function UF.SmallFrame.Create(opts)
             Module.portraitHooked = true
         end
 
-        -- Keep detached companion frames anchored after Blizzard parent refreshes.
+        -- Sync visibility when Blizzard refreshes the parent unit frame (ToT/FoT
+        -- updates run inside TargetFrame_Update / FocusFrame_Update).
         if not Module.parentUpdateHooked then
             if opts.parentUnit == "target" and type(TargetFrame_Update) == "function" then
                 hooksecurefunc("TargetFrame_Update", function()
+                    if IsEnabled() then
+                        RequestVisibilityRefreshFromEvent()
+                    end
                     ReapplyDetachedWidgetPositionIfNeeded()
                 end)
                 Module.parentUpdateHooked = true
             elseif opts.parentUnit == "focus" and type(FocusFrame_Update) == "function" then
                 hooksecurefunc("FocusFrame_Update", function()
+                    if IsEnabled() then
+                        RequestVisibilityRefreshFromEvent()
+                    end
                     ReapplyDetachedWidgetPositionIfNeeded()
                 end)
                 Module.parentUpdateHooked = true
@@ -645,15 +655,21 @@ function UF.SmallFrame.Create(opts)
     -- EVENT HANDLING
     -- ========================================================================
 
-    local function ReconcileVisibility()
+    ReconcileVisibility = function()
         if InCombatLockdown() then
             Module.pendingVisibilityRefresh = true
+            if addon and addon.CombatQueue then
+                addon.CombatQueue:Add(opts.configKey .. "_visibility_refresh", function()
+                    ReconcileVisibility()
+                end)
+            end
             return
         end
 
         Module.pendingVisibilityRefresh = nil
 
         if not IsEnabled() then
+            Module.pendingHideVerify = nil
             if frames.main then
                 frames.main:Hide()
             end
@@ -662,8 +678,16 @@ function UF.SmallFrame.Create(opts)
 
         if frames.main then
             if ShouldShow() then
+                Module.pendingHideVerify = nil
                 frames.main:Show()
+            elseif not Module.pendingHideVerify then
+                -- Defer hide one frame so a transient UnitExists("targettarget")
+                -- false does not leave the frame hidden until the next event.
+                Module.pendingHideVerify = true
+                RequestVisibilityRefresh()
+                return
             else
+                Module.pendingHideVerify = nil
                 frames.main:Hide()
             end
         end
@@ -677,7 +701,7 @@ function UF.SmallFrame.Create(opts)
         end
     end
 
-    local function RequestVisibilityRefresh()
+    RequestVisibilityRefresh = function()
         Module.pendingVisibilityRefresh = true
 
         if InCombatLockdown() then
@@ -709,7 +733,7 @@ function UF.SmallFrame.Create(opts)
         end)
     end
 
-    local function RequestVisibilityRefreshFromEvent()
+    RequestVisibilityRefreshFromEvent = function()
         -- Defer one frame to avoid mutating protected unit frame visibility
         -- directly from Blizzard unit update event call stacks.
         RequestVisibilityRefresh()
@@ -781,7 +805,7 @@ function UF.SmallFrame.Create(opts)
             end
 
         elseif event == "PLAYER_REGEN_ENABLED" then
-            if Module.pendingVisibilityRefresh then
+            if IsEnabled() then
                 RequestVisibilityRefresh()
             end
 
@@ -952,11 +976,7 @@ function UF.SmallFrame.Create(opts)
                 end
                 frames.main:SetScale((config and config.scale) or 1.0)
 
-                if ShouldShow() then
-                    frames.main:Show()
-                else
-                    frames.main:Hide()
-                end
+                RequestVisibilityRefresh()
             elseif frames.main then
                 RequestVisibilityRefresh()
             end
