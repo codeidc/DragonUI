@@ -1443,9 +1443,13 @@ local function GetAllMinimapButtons()
         if not parentFrame then
             return
         end
-
-        local children = { parentFrame:GetChildren() }
-        for i = 1, #children do
+        
+-- Addons like Questie parent hundreds of map pins directly to Minimap, which overflows the Lua
+-- C stack before we can filter them. pcall catches that error so we fail gracefully instead of
+-- spamming an error every frame.
+    local ok, children = pcall(function() return { parentFrame:GetChildren() } end)
+    if not ok then return end
+    for i = 1, #children do
             local child = children[i]
             if not child then
             elseif child:GetObjectType() == "Button" then
